@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Production, SECTORS, Sector, calculateDifference, calculateStatus } from '../types';
-import { Calendar, PlayCircle, Save, StopCircle, Sun, Sunset } from 'lucide-react';
+import { Production, SECTORS, Sector, SHIFT_TYPES, ShiftType, calculateDifference, calculateStatus } from '../types';
+import { Calendar, PlayCircle, Save, StopCircle } from 'lucide-react';
 
 export function ProductionPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSector, setSelectedSector] = useState<Sector>(SECTORS[0]);
+  const [selectedShift, setSelectedShift] = useState<ShiftType>(SHIFT_TYPES[0]);
   const [production, setProduction] = useState<Production[]>([]);
+  const [programmingPlan, setProgrammingPlan] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     loadProduction();
-  }, [selectedDate, selectedSector]);
+    loadProgrammingPlan();
+  }, [selectedDate, selectedSector, selectedShift]);
 
   const loadProduction = async () => {
     setLoading(true);
@@ -35,6 +38,28 @@ export function ProductionPage() {
     }
   };
 
+  const loadProgrammingPlan = async () => {
+    try {
+      let query = supabase
+        .from('programming')
+        .select('*')
+        .eq('date', selectedDate)
+        .eq('sector', selectedSector)
+        .eq('shift_type', selectedShift);
+
+      const { data, error } = await (query as any);
+      if (error) throw error;
+
+      const plan: Record<string, number> = {};
+      (data as any[]).forEach(row => {
+        plan[row.product] = (plan[row.product] || 0) + row.planned_kg;
+      });
+      setProgrammingPlan(plan);
+    } catch (error) {
+      console.error('Error loading programming plan:', error);
+    }
+  };
+
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3000);
@@ -53,13 +78,16 @@ export function ProductionPage() {
       }));
 
       for (const update of updates) {
-        const { error } = await (supabase
+        const { error: productionError } = await (supabase
           .from('production') as any)
           .update({ produced: update.produced })
           .eq('id', update.id);
 
-        if (error) throw error;
+        if (productionError) throw productionError;
       }
+
+      // Always save snapshot to history based on current selectedShift
+      await saveShiftToHistory(selectedShift);
 
       showMessage('success', 'Producción guardada exitosamente');
       await loadProduction();
@@ -71,38 +99,7 @@ export function ProductionPage() {
     }
   };
 
-  const saveShift = async (shiftType: 'Mañana' | 'Tarde') => {
-    setSaving(true);
-    try {
-      const shiftData = production.map(p => {
-        const difference = calculateDifference(p.produced, p.planned);
-        const status = calculateStatus(difference);
-        return {
-          date: selectedDate,
-          shift_type: shiftType,
-          sector: p.sector,
-          product: p.product,
-          planned: p.planned,
-          produced: p.produced,
-          difference,
-          status,
-        };
-      });
 
-      const { error } = await (supabase
-        .from('shifts') as any)
-        .insert(shiftData);
-
-      if (error) throw error;
-
-      showMessage('success', `Turno ${shiftType} guardado exitosamente`);
-    } catch (error) {
-      console.error('Error saving shift:', error);
-      showMessage('error', 'Error al guardar el turno');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const startDay = async () => {
     setSaving(true);
@@ -239,13 +236,84 @@ export function ProductionPage() {
   const totalProduced = production.reduce((sum, p) => sum + p.produced, 0);
   const totalDifference = totalProduced - totalPlanned;
   const overallStatus = calculateStatus(totalDifference);
+  const saveShiftToHistory = async (shiftLabel: ShiftType) => {
+    setSaving(true);
+    try {
+      // Get current programming for ONLY this shift to have the correct plan
+      const { data: shiftProgramming, error: progError } = await (supabase
+        .from('programming') as any)
+        .select('*')
+        .eq('date', selectedDate)
+        .eq('sector', selectedSector)
+        .eq('shift_type', shiftLabel);
 
+      if (progError) throw progError;
+
+      const shiftPlan: Record<string, number> = {};
+      (shiftProgramming as any[]).forEach(row => {
+        shiftPlan[row.product] = (shiftPlan[row.product] || 0) + row.planned_kg;
+      });
+
+      const historyData = production
+        .filter(p => shiftPlan[p.product] > 0)
+        .map((p) => {
+          const planned = shiftPlan[p.product] || 0;
+          const produced = p.produced;
+          const difference = produced - planned;
+          const status = calculateStatus(difference);
+          
+          return {
+            date: selectedDate,
+            sector: p.sector,
+            product: p.product,
+            planned,
+            produced,
+            difference,
+            status,
+            shift_type: shiftLabel,
+          };
+        });
+
+      if (historyData.length === 0) {
+        showMessage('error', `No hay programación para el ${shiftLabel}`);
+        return;
+      }
+
+      const { error: insertError } = await (supabase
+        .from('history') as any)
+        .insert(historyData);
+
+      if (insertError) throw insertError;
+      showMessage('success', `${shiftLabel} guardado satisfactoriamente en el historial`);
+    } catch (error) {
+      console.error('Error saving shift to history:', error);
+      showMessage('error', 'Error al guardar el turno');
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300">Producción Operativa</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300">Registra la producción en tiempo real</p>
+          
+          <div className="mt-4 flex flex-wrap gap-2">
+            {SHIFT_TYPES.map((shift) => (
+              <button
+                key={shift}
+                onClick={() => setSelectedShift(shift)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedShift === shift
+                    ? 'bg-amber-600 text-white shadow-md'
+                    : 'bg-white dark:bg-[#1a1c23] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 hover:bg-gray-50'
+                }`}
+              >
+                Turno {shift}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className="flex items-center space-x-2">
@@ -336,22 +404,6 @@ export function ProductionPage() {
           <Save className="w-5 h-5" />
           <span>Guardar Producción</span>
         </button>
-        <button
-          onClick={() => saveShift('Mañana')}
-          disabled={saving || production.length === 0}
-          className="flex items-center space-x-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition font-medium disabled:opacity-50"
-        >
-          <Sun className="w-5 h-5" />
-          <span>Guardar Turno Mañana</span>
-        </button>
-        <button
-          onClick={() => saveShift('Tarde')}
-          disabled={saving || production.length === 0}
-          className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition font-medium disabled:opacity-50"
-        >
-          <Sunset className="w-5 h-5" />
-          <span>Guardar Turno Tarde</span>
-        </button>
       </div>
 
       <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden transition-all duration-300">
@@ -368,7 +420,8 @@ export function ProductionPage() {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-white/5">
               {production.map((row) => {
-                const difference = calculateDifference(row.produced, row.planned);
+                const plannedForView = programmingPlan[row.product] || 0;
+                const difference = calculateDifference(row.produced, plannedForView);
                 const status = calculateStatus(difference);
 
                 return (
@@ -377,7 +430,7 @@ export function ProductionPage() {
                       <p className="font-semibold text-gray-900 dark:text-white">{row.product}</p>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <p className="text-lg font-medium text-gray-900 dark:text-white">{row.planned.toFixed(1)}</p>
+                      <p className="text-lg font-medium text-gray-900 dark:text-white">{plannedForView.toFixed(1)}</p>
                     </td>
                     <td className="px-6 py-4">
                       <input

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { History, SECTORS, Sector } from '../types';
+import { History, SECTORS, Sector, SHIFT_TYPES, ShiftType } from '../types';
 import { Calendar, Filter } from 'lucide-react';
 
 export function HistoryPage() {
@@ -11,12 +11,13 @@ export function HistoryPage() {
   });
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSector, setSelectedSector] = useState<Sector | 'Todos'>('Todos');
+  const [selectedShift, setSelectedShift] = useState<ShiftType | 'Todos'>('Todos');
   const [history, setHistory] = useState<History[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadHistory();
-  }, [startDate, endDate, selectedSector]);
+  }, [startDate, endDate, selectedSector, selectedShift]);
 
   const loadHistory = async () => {
     setLoading(true);
@@ -31,6 +32,10 @@ export function HistoryPage() {
 
       if (selectedSector !== 'Todos') {
         query = query.eq('sector', selectedSector);
+      }
+
+      if (selectedShift !== 'Todos') {
+        query = query.eq('shift_type', selectedShift);
       }
 
       const { data, error } = await query;
@@ -65,6 +70,32 @@ export function HistoryPage() {
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300">Historial de Producción</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300">Consulta el histórico de producción</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setSelectedShift('Todos')}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            selectedShift === 'Todos'
+              ? 'bg-blue-600 dark:bg-blue-600 text-white shadow-md'
+              : 'bg-white dark:bg-[#1a1c23] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
+          }`}
+        >
+          Todos los turnos
+        </button>
+        {SHIFT_TYPES.map((shift) => (
+          <button
+            key={shift}
+            onClick={() => setSelectedShift(shift as ShiftType)}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              selectedShift === shift
+                ? 'bg-amber-600 dark:bg-amber-600 text-white shadow-md'
+                : 'bg-white dark:bg-[#1a1c23] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
+            }`}
+          >
+            Turno {shift}
+          </button>
+        ))}
       </div>
 
       <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 transition-all duration-300">
