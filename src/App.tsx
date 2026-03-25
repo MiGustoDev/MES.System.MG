@@ -5,13 +5,13 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ProgrammingPage } from './pages/ProgrammingPage';
 import { ProductionPage } from './pages/ProductionPage';
 import { HistoryPage } from './pages/HistoryPage';
-import PlantScreenPage from './pages/PlantScreenPage';
+import { PlantScreenPage } from './pages/PlantScreenPage';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState('dashboard');
 
   if (currentPage === 'plant-screen') {
-    return <PlantScreenPage />;
+    return <PlantScreenPage onBack={() => setCurrentPage('dashboard')} />;
   }
 
   const renderPage = () => {

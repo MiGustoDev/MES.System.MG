@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Production, SECTORS, calculateDifference, calculateStatus } from '../types';
-import { TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
+import { Production, SECTORS, calculateStatus } from '../types';
+import { TrendingUp, TrendingDown, Minus, AlertCircle, ArrowLeft } from 'lucide-react';
 
-export function PlantScreenPage() {
+export function PlantScreenPage({ onBack }: { onBack: () => void }) {
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [production, setProduction] = useState<Production[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -81,6 +81,14 @@ export function PlantScreenPage() {
           <div>
             <h1 className="text-6xl font-bold mb-2">SISTEMA MES - PRODUCCIÓN EN VIVO</h1>
             <p className="text-3xl text-slate-300">Gestión de Producción Industrial</p>
+            <button
+              onClick={onBack}
+              className="mt-4 flex items-center space-x-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-all border border-slate-600/30"
+              title="Volver"
+            >
+              <ArrowLeft className="w-6 h-6" />
+              <span className="text-lg font-medium">Volver</span>
+            </button>
           </div>
           <div className="text-right">
             <p className="text-5xl font-bold">{currentTime.toLocaleTimeString('es-ES')}</p>
