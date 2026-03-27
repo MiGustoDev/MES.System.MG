@@ -204,12 +204,18 @@ export function DashboardPage() {
         </div>
         <div className="flex items-center space-x-2">
           <Calendar className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-          />
+          <div className="relative">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full"
+            />
+            <div className="min-w-[140px] px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-3 transition-all cursor-pointer">
+              <span className="font-medium">{selectedDate.split('-').reverse().join('/')}</span>
+              <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+            </div>
+          </div>
         </div>
       </div>
 

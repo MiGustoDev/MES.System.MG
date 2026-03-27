@@ -280,7 +280,7 @@ export function ProgrammingPage() {
         <>
           <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden transition-all duration-300 mb-8">
             <h3 className="px-6 py-4 text-base font-bold bg-gray-50 dark:bg-black/20 text-gray-900 dark:text-gray-100 border-b dark:border-white/5 text-center">
-              BATEAS/UNIDADES
+              BATEAS
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -376,7 +376,10 @@ export function ProgrammingPage() {
         <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden transition-all duration-300">
           {['Mesa de Carnes', 'Cocina', 'Armado', 'Salsas'].includes(selectedSector) && (
             <h3 className="px-6 py-4 text-base font-bold bg-gray-50 dark:bg-black/20 text-gray-900 dark:text-gray-100 border-b dark:border-white/5 text-center">
-              {selectedSector === 'Mesa de Carnes' ? 'CANTIDAD' : selectedSector === 'Salsas' ? 'ELABORACION' : 'COCCIONES'}
+              {selectedSector === 'Mesa de Carnes' ? 'COCCIONES' : 
+               selectedSector === 'Salsas' ? 'UNIDADES' : 
+               selectedSector === 'Armado' ? 'BANDEJAS' : 
+               'COCCIONES'}
             </h3>
           )}
           <div className="overflow-x-auto">

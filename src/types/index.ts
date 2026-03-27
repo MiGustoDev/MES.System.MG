@@ -165,7 +165,7 @@ export const SECTOR_PRODUCTS = {
   ],
 } as const satisfies Record<Sector, readonly string[]>;
 
-export const SHIFT_TYPES = ['Mañana', 'Tarde'] as const;
+export const SHIFT_TYPES = ['Mañana', 'Tarde', 'Noche'] as const;
 export type ShiftType = typeof SHIFT_TYPES[number];
 
 export const STATUS_TYPES = ['Adelanto', 'OK', 'Atraso'] as const;

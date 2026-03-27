@@ -72,30 +72,34 @@ export function HistoryPage() {
         <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300">Consulta el histórico de producción</p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setSelectedShift('Todos')}
-          className={`px-4 py-2 rounded-lg font-medium transition-all ${
-            selectedShift === 'Todos'
-              ? 'bg-blue-600 dark:bg-blue-600 text-white shadow-md'
-              : 'bg-white dark:bg-[#1a1c23] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
-          }`}
-        >
-          Todos los turnos
-        </button>
-        {SHIFT_TYPES.map((shift) => (
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex justify-center">
           <button
-            key={shift}
-            onClick={() => setSelectedShift(shift as ShiftType)}
+            onClick={() => setSelectedShift('Todos')}
             className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              selectedShift === shift
-                ? 'bg-amber-600 dark:bg-amber-600 text-white shadow-md'
+              selectedShift === 'Todos'
+                ? 'bg-blue-600 dark:bg-blue-600 text-white shadow-md'
                 : 'bg-white dark:bg-[#1a1c23] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
             }`}
           >
-            Turno {shift}
+            Todos los turnos
           </button>
-        ))}
+        </div>
+        <div className="flex flex-wrap gap-2 justify-center">
+          {SHIFT_TYPES.map((shift) => (
+            <button
+              key={shift}
+              onClick={() => setSelectedShift(shift as ShiftType)}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                selectedShift === shift
+                  ? 'bg-amber-600 dark:bg-amber-600 text-white shadow-md'
+                  : 'bg-white dark:bg-[#1a1c23] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
+              }`}
+            >
+              Turno {shift}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 transition-all duration-300">
@@ -109,24 +113,36 @@ export function HistoryPage() {
               <Calendar className="w-4 h-4 inline mr-1" />
               Fecha Inicio
             </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            />
+            <div className="relative">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full"
+              />
+              <div className="w-full px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-3 transition-all cursor-pointer">
+                <span className="font-medium">{startDate.split('-').reverse().join('/')}</span>
+                <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+              </div>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               <Calendar className="w-4 h-4 inline mr-1" />
               Fecha Fin
             </label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            />
+            <div className="relative">
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full"
+              />
+              <div className="w-full px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-3 transition-all cursor-pointer">
+                <span className="font-medium">{endDate.split('-').reverse().join('/')}</span>
+                <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+              </div>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
