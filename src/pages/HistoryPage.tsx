@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { History, SECTORS, Sector, SHIFT_TYPES, ShiftType, SECTOR_PRODUCTS } from '../types';
-import { Calendar, Beef, ChefHat, ListRestart, Package, Droplets, Info } from 'lucide-react';
+import { History, SECTORS, Sector, SHIFT_TYPES, ShiftType, SECTOR_PRODUCTS, calculateStatus } from '../types';
+import { Calendar, Beef, ChefHat, ListRestart, Package, Droplets, Info, TrendingUp, Target, Activity } from 'lucide-react';
 
 const SECTOR_ICONS: Record<string, any> = {
   'Mesa de Carnes': Beef,
@@ -27,7 +27,6 @@ export function HistoryPage() {
   const loadHistory = async () => {
     setLoading(true);
     try {
-      // Primero consultamos qué turnos tienen datos este día para guiar al usuario
       const { data: shiftsData } = await supabase
         .from('history')
         .select('shift_type')
@@ -35,9 +34,6 @@ export function HistoryPage() {
       
       const shifts = Array.from(new Set(((shiftsData as any[]) || []).map(s => s.shift_type)));
       setAvailableShifts(shifts);
-
-      // Si el turno actual no tiene datos pero 'Completo' sí, y es la primera carga para esta fecha, podríamos sugerir cambiar,
-      // pero por ahora solo cargamos lo solicitado estrictamente.
       
       let query = supabase
         .from('history')
@@ -47,7 +43,6 @@ export function HistoryPage() {
         .order('sector', { ascending: true });
 
       const { data, error } = await query;
-
       if (error) throw error;
       setHistory(data || []);
     } catch (error) {
@@ -62,13 +57,10 @@ export function HistoryPage() {
     return item.sector === selectedSector && sectorProducts.includes(item.product);
   });
   
-  const groupedByDate = filteredHistory.reduce((acc, item) => {
-    if (!acc[item.date]) {
-      acc[item.date] = [];
-    }
-    acc[item.date].push(item);
-    return acc;
-  }, {} as Record<string, History[]>);
+  const totalPlanned = filteredHistory.reduce((sum, item) => sum + item.planned, 0);
+  const totalProduced = filteredHistory.reduce((sum, item) => sum + item.produced, 0);
+  const totalDifference = totalProduced - totalPlanned;
+  const overallStatus = totalPlanned > 0 ? calculateStatus(totalDifference) : 'OK';
 
   if (loading) {
     return (
@@ -79,11 +71,11 @@ export function HistoryPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300 tracking-tight">Historial de Producción</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300 font-medium">Análisis detallado de la planta por jornada</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Historial de Producción</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1 font-medium">Análisis detallado de la planta por jornada</p>
         </div>
         
         <div 
@@ -107,7 +99,6 @@ export function HistoryPage() {
 
       <div className="flex flex-col items-center gap-4">
         <div className="flex flex-wrap gap-2 justify-center">
-          {/* Botones de Turnos específicos */}
           {SHIFT_TYPES.map((shift) => (
             <button
               key={shift}
@@ -127,141 +118,116 @@ export function HistoryPage() {
         </div>
       </div>
 
-      <div className="space-y-6">
-        {Object.entries(groupedByDate).length === 0 ? (
-          <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-100 dark:border-white/5 p-16 text-center transition-all duration-300 flex flex-col items-center gap-4">
-            <Info className="w-12 h-12 text-gray-200 dark:text-white/10 mb-2" />
-            <p className="text-gray-500 dark:text-gray-400 text-xl font-bold tracking-tight">SIN REGISTROS PARA {selectedShift.toUpperCase()}</p>
+      <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-100 dark:border-white/5 overflow-hidden transition-all duration-300">
+        {/* NAVEGACIÓN DE SECTORES - SIEMPRE VISIBLE */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-transparent">
+          {SECTORS.map((s) => {
+            const Icon = SECTOR_ICONS[s];
+            return (
+              <button
+                key={s}
+                onClick={() => setSelectedSector(s)}
+                className={`relative px-6 py-4 flex flex-col items-center gap-2 transition-all duration-300 group ${
+                  selectedSector === s
+                    ? 'bg-blue-600/5 dark:bg-blue-600/10'
+                    : 'hover:bg-gray-100/50 dark:hover:bg-white/5'
+                }`}
+              >
+                <div className={`p-2 rounded-xl transition-all duration-300 ${
+                  selectedSector === s
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                    : 'bg-gray-200/50 dark:bg-white/5 text-gray-400 group-hover:text-blue-500'
+                }`}>
+                  {Icon && <Icon className="w-5 h-5" />}
+                </div>
+                <span className={`text-[10px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${
+                  selectedSector === s
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-gray-500 dark:group-hover:text-gray-300'
+                }`}>
+                  {s}
+                </span>
+                {selectedSector === s && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 shadow-[0_-2px_10px_rgba(37,99,235,0.5)] animate-in slide-in-from-bottom-1"></div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {filteredHistory.length === 0 ? (
+          <div className="p-20 text-center flex flex-col items-center gap-4 bg-white dark:bg-transparent">
+            <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-full mb-2">
+              <Info className="w-10 h-10 text-gray-300 dark:text-white/10" />
+            </div>
+            <p className="text-gray-500 dark:text-gray-400 text-xl font-bold tracking-tight uppercase">SIN REGISTROS PARA {selectedSector.toUpperCase()}</p>
             <p className="text-gray-400 dark:text-gray-600 text-sm max-w-xs mx-auto">
-              {availableShifts.length > 0 
-                ? `Hay datos disponibles en: ${availableShifts.join(', ')}. Prueba seleccionando uno de ellos.`
-                : "No se encontró actividad grabada para esta fecha en ningún turno."}
+              Prueba cambiando de sector o turno para el día {selectedDate.split('-').reverse().join('/')}.
             </p>
           </div>
         ) : (
-          Object.entries(groupedByDate).map(([date, items]) => {
-            const totalPlanned = items.reduce((sum, item) => sum + item.planned, 0);
-            const totalProduced = items.reduce((sum, item) => sum + item.produced, 0);
-            const totalDifference = items.reduce((sum, item) => sum + item.difference, 0);
-            const overallStatus = totalDifference > 0 ? 'Adelanto' : totalDifference === 0 ? 'OK' : 'Atraso';
-
-            return (
-              <div key={date} className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-100 dark:border-white/5 overflow-hidden transition-all duration-300">
-                <div className="bg-gradient-to-r from-[#0f172a] to-[#1e293b] px-8 py-6">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                    <div>
-                      <h3 className="text-2xl font-black text-white uppercase tracking-tight">
-                        {new Date(date + 'T00:00:00').toLocaleDateString('es-ES', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                        <p className="text-blue-200 text-[10px] font-black tracking-[0.2em] uppercase">
-                          Reporte de Eficiencia MES.MG
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-4">
-                      {[
-                        { label: 'Plan Segmento', value: totalPlanned, color: 'text-white' },
-                        { label: 'Producido', value: totalProduced, color: 'text-teal-400' },
-                        { label: 'Eficiencia', value: overallStatus, color: overallStatus === 'Adelanto' ? 'text-amber-400' : overallStatus === 'Atraso' ? 'text-red-500' : 'text-teal-400' }
-                      ].map((kpi, idx) => (
-                        <div key={idx} className="bg-white/5 px-5 py-2.5 rounded-2xl backdrop-blur-md border border-white/10 min-w-[110px]">
-                          <p className="text-gray-400 text-[9px] font-black uppercase tracking-widest mb-1">{kpi.label}</p>
-                          <p className={`text-lg font-black ${kpi.color}`}>
-                            {typeof kpi.value === 'number' ? `${kpi.value.toFixed(0)} kg` : kpi.value.toUpperCase()}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+          <div className="animate-in fade-in duration-500">
+            {/* KPI CARDS POR SECTOR */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-gray-50/30 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
+              {[
+                { label: 'META SECTOR', value: `${totalPlanned.toFixed(0)} kg`, icon: Target, color: 'text-gray-900 dark:text-white' },
+                { label: 'REAL LOGRADO', value: `${totalProduced.toFixed(0)} kg`, icon: TrendingUp, color: 'text-teal-600 dark:text-teal-400' },
+                { label: 'ESTADO ACTUAL', value: overallStatus.toUpperCase(), icon: Activity, color: overallStatus === 'Adelanto' ? 'text-amber-500' : overallStatus === 'Atraso' ? 'text-red-600' : 'text-teal-500' }
+              ].map((kpi, idx) => (
+                <div key={idx} className="bg-white dark:bg-black/20 p-4 rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex items-center gap-4">
+                  <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
+                    <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{kpi.label}</p>
+                    <p className={`text-xl font-black ${kpi.color} leading-none`}>{kpi.value}</p>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                {/* NAVEGACIÓN DE SECTORES */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0 border-b border-gray-100 dark:border-white/5">
-                    {SECTORS.map((s) => {
-                      const Icon = SECTOR_ICONS[s];
-                      return (
-                        <button
-                          key={s}
-                          onClick={() => setSelectedSector(s)}
-                          className={`relative px-6 py-4 flex flex-col items-center gap-2 transition-all duration-300 group ${
-                            selectedSector === s
-                              ? 'bg-blue-600/5 dark:bg-blue-600/10'
-                              : 'bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-white/5'
-                          }`}
-                        >
-                          <div className={`p-2 rounded-xl transition-all duration-300 ${
-                            selectedSector === s
-                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 rotate-0'
-                              : 'bg-gray-100 dark:bg-white/5 text-gray-400 group-hover:text-blue-500 group-hover:rotate-12'
-                          }`}>
-                            {Icon && <Icon className="w-5 h-5" />}
-                          </div>
-                          <span className={`text-[10px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${
-                            selectedSector === s
-                              ? 'text-blue-600 dark:text-blue-400'
-                              : 'text-gray-500 dark:border-white/5 group-hover:text-gray-900 dark:group-hover:text-gray-300'
-                          }`}>
-                            {s}
-                          </span>
-                          {selectedSector === s && (
-                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 shadow-[0_-2px_10px_rgba(37,99,235,0.5)]"></div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 dark:bg-black/40 border-b border-gray-100 dark:border-white/5">
-                      <tr>
-                        <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Producto</th>
-                        <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Planificado</th>
-                        <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Producción Real</th>
-                        <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Diferencia</th>
-                        <th className="px-8 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-                      {items.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
-                            <td className="px-8 py-5 font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{item.product}</td>
-                            <td className="px-8 py-5 text-right text-gray-900 dark:text-white font-medium">{item.planned.toFixed(1)} <span className="text-[10px] text-gray-400 font-bold ml-1">KG</span></td>
-                            <td className="px-8 py-5 text-right text-gray-900 dark:text-white font-black">{item.produced.toFixed(1)} <span className="text-[10px] text-gray-400 font-bold ml-1">KG</span></td>
-                            <td className="px-8 py-5 text-right">
-                              <span className={`text-sm font-black px-3 py-1 rounded-lg ${
-                                item.difference > 0 ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400' :
-                                item.difference < 0 ? 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400' :
-                                'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300'
-                              }`}>
-                                {item.difference >= 0 ? '+' : ''}{item.difference.toFixed(1)}
-                              </span>
-                            </td>
-                            <td className="px-8 py-5 text-center font-black">
-                              <span className={`text-[10px] tracking-widest px-3 py-1.5 rounded-full border ${
-                                item.status === 'Adelanto' ? 'border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' :
-                                item.status === 'Atraso' ? 'border-red-200 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' :
-                                'border-teal-200 bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/20'
-                              }`}>
-                                {item.status.toUpperCase()}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })
+            {/* TABLA DE PRODUCTOS */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-black/40 border-b border-gray-100 dark:border-white/5">
+                  <tr>
+                    <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Producto</th>
+                    <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Planificado</th>
+                    <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Logrado</th>
+                    <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Diferencia</th>
+                    <th className="px-8 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Eficiencia</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                  {filteredHistory.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
+                      <td className="px-8 py-5 font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{item.product}</td>
+                      <td className="px-8 py-5 text-right text-gray-900 dark:text-white font-medium">{item.planned.toFixed(1)} <span className="text-[10px] text-gray-400 font-bold ml-1">KG</span></td>
+                      <td className="px-8 py-5 text-right text-gray-900 dark:text-white font-black">{item.produced.toFixed(1)} <span className="text-[10px] text-gray-400 font-bold ml-1">KG</span></td>
+                      <td className="px-8 py-5 text-right">
+                        <span className={`text-sm font-black px-3 py-1 rounded-lg ${
+                          item.difference > 0 ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400' :
+                          item.difference < 0 ? 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400' :
+                          'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300'
+                        }`}>
+                          {item.difference >= 0 ? '+' : ''}{item.difference.toFixed(1)}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5 text-center font-black">
+                        <span className={`text-[10px] tracking-widest px-3 py-1.5 rounded-full border ${
+                          item.status === 'Adelanto' ? 'border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' :
+                          item.status === 'Atraso' ? 'border-red-200 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' :
+                          'border-teal-200 bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/20'
+                        }`}>
+                          {item.status.toUpperCase()}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </div>
     </div>
