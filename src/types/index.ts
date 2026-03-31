@@ -172,6 +172,7 @@ export interface Production {
   date: string;
   sector: Sector;
   product: string;
+  shift_type: ShiftType;
   planned: number;
   produced: number;
   created_at: string;

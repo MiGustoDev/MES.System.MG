@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Production, SECTORS, Sector, SHIFT_TYPES, ShiftType, SECTOR_PRODUCTS, calculateDifference, calculateStatus } from '../types';
-import { Calendar, PlayCircle, Save, StopCircle, AlertTriangle, Target, Activity, TrendingUp, Package } from 'lucide-react';
+import { Calendar, PlayCircle, Save, StopCircle, AlertTriangle } from 'lucide-react';
 
 const SECTOR_UNITS: Record<string, string> = {
   'Mesa de Carnes': 'KG',
