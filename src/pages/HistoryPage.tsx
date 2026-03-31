@@ -16,6 +16,7 @@ export function HistoryPage() {
   const [selectedSector, setSelectedSector] = useState<Sector>(SECTORS[0]);
   const [selectedShift, setSelectedShift] = useState<ShiftType>(SHIFT_TYPES[0]);
   const [history, setHistory] = useState<History[]>([]);
+  const [availableShifts, setAvailableShifts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
@@ -26,6 +27,18 @@ export function HistoryPage() {
   const loadHistory = async () => {
     setLoading(true);
     try {
+      // Primero consultamos qué turnos tienen datos este día para guiar al usuario
+      const { data: shiftsData } = await supabase
+        .from('history')
+        .select('shift_type')
+        .eq('date', selectedDate);
+      
+      const shifts = Array.from(new Set(((shiftsData as any[]) || []).map(s => s.shift_type)));
+      setAvailableShifts(shifts);
+
+      // Si el turno actual no tiene datos pero 'Completo' sí, y es la primera carga para esta fecha, podríamos sugerir cambiar,
+      // pero por ahora solo cargamos lo solicitado estrictamente.
+      
       let query = supabase
         .from('history')
         .select('*')
@@ -69,11 +82,10 @@ export function HistoryPage() {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300">Historial de Producción</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300 tracking-tight">Historial de Producción</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300 font-medium">Análisis detallado de la planta por jornada</p>
         </div>
         
-        {/* Selector de Fecha Única - Estilo Unificado */}
         <div 
           className="relative w-full sm:w-auto min-w-[160px] px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-3 transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-500/50 group text-sm sm:text-base pr-8 shadow-sm"
           onClick={() => dateInputRef.current?.showPicker()}
@@ -95,17 +107,21 @@ export function HistoryPage() {
 
       <div className="flex flex-col items-center gap-4">
         <div className="flex flex-wrap gap-2 justify-center">
+          {/* Botones de Turnos específicos */}
           {SHIFT_TYPES.map((shift) => (
             <button
               key={shift}
               onClick={() => setSelectedShift(shift as ShiftType)}
-              className={`px-8 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${
+              className={`px-8 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-[0.15em] transition-all relative ${
                 selectedShift === shift
-                  ? 'bg-amber-600 text-white shadow-[0_0_15px_rgba(217,119,6,0.4)]'
-                  : 'bg-white dark:bg-[#1a1c23] text-gray-500 border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
+                  ? 'bg-amber-600 text-white shadow-[0_0_15px_rgba(217,119,6,0.3)]'
+                  : 'bg-white dark:bg-[#1a1c23] text-gray-500 border border-gray-200 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5'
               }`}
             >
               Turno {shift}
+              {availableShifts.includes(shift) && selectedShift !== shift && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full shadow-lg"></span>
+              )}
             </button>
           ))}
         </div>
@@ -113,10 +129,14 @@ export function HistoryPage() {
 
       <div className="space-y-6">
         {Object.entries(groupedByDate).length === 0 ? (
-          <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 p-16 text-center transition-all duration-300 flex flex-col items-center gap-4">
-            <Info className="w-12 h-12 text-gray-300 dark:text-white/10 mb-2" />
-            <p className="text-gray-500 dark:text-gray-400 text-xl font-medium italic">No se encontraron registros en la fecha seleccionada</p>
-            <p className="text-gray-400 dark:text-gray-600 text-sm">Prueba seleccionando otro día o turno.</p>
+          <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-100 dark:border-white/5 p-16 text-center transition-all duration-300 flex flex-col items-center gap-4">
+            <Info className="w-12 h-12 text-gray-200 dark:text-white/10 mb-2" />
+            <p className="text-gray-500 dark:text-gray-400 text-xl font-bold tracking-tight">SIN REGISTROS PARA {selectedShift.toUpperCase()}</p>
+            <p className="text-gray-400 dark:text-gray-600 text-sm max-w-xs mx-auto">
+              {availableShifts.length > 0 
+                ? `Hay datos disponibles en: ${availableShifts.join(', ')}. Prueba seleccionando uno de ellos.`
+                : "No se encontró actividad grabada para esta fecha en ningún turno."}
+            </p>
           </div>
         ) : (
           Object.entries(groupedByDate).map(([date, items]) => {
@@ -126,7 +146,7 @@ export function HistoryPage() {
             const overallStatus = totalDifference > 0 ? 'Adelanto' : totalDifference === 0 ? 'OK' : 'Atraso';
 
             return (
-              <div key={date} className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 overflow-hidden transition-all duration-300">
+              <div key={date} className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-100 dark:border-white/5 overflow-hidden transition-all duration-300">
                 <div className="bg-gradient-to-r from-[#0f172a] to-[#1e293b] px-8 py-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
                     <div>
@@ -148,9 +168,9 @@ export function HistoryPage() {
                     
                     <div className="flex flex-wrap gap-4">
                       {[
-                        { label: 'Plan Total', value: totalPlanned, color: 'text-white' },
+                        { label: 'Plan Segmento', value: totalPlanned, color: 'text-white' },
                         { label: 'Producido', value: totalProduced, color: 'text-teal-400' },
-                        { label: 'Estado', value: overallStatus, color: overallStatus === 'Adelanto' ? 'text-amber-400' : overallStatus === 'Atraso' ? 'text-red-500' : 'text-teal-400' }
+                        { label: 'Eficiencia', value: overallStatus, color: overallStatus === 'Adelanto' ? 'text-amber-400' : overallStatus === 'Atraso' ? 'text-red-500' : 'text-teal-400' }
                       ].map((kpi, idx) => (
                         <div key={idx} className="bg-white/5 px-5 py-2.5 rounded-2xl backdrop-blur-md border border-white/10 min-w-[110px]">
                           <p className="text-gray-400 text-[9px] font-black uppercase tracking-widest mb-1">{kpi.label}</p>
@@ -163,8 +183,8 @@ export function HistoryPage() {
                   </div>
                 </div>
 
-                {/* NAVEGACIÓN DE SECTORES - REDISEÑADA */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0 border-b border-gray-200 dark:border-white/5">
+                {/* NAVEGACIÓN DE SECTORES */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0 border-b border-gray-100 dark:border-white/5">
                     {SECTORS.map((s) => {
                       const Icon = SECTOR_ICONS[s];
                       return (
@@ -187,7 +207,7 @@ export function HistoryPage() {
                           <span className={`text-[10px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${
                             selectedSector === s
                               ? 'text-blue-600 dark:text-blue-400'
-                              : 'text-gray-500 dark:text-gray-500 group-hover:text-gray-900 dark:group-hover:text-gray-300'
+                              : 'text-gray-500 dark:border-white/5 group-hover:text-gray-900 dark:group-hover:text-gray-300'
                           }`}>
                             {s}
                           </span>
@@ -201,17 +221,16 @@ export function HistoryPage() {
 
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50 dark:bg-black/40 border-b border-gray-200 dark:border-white/5">
+                    <thead className="bg-gray-50 dark:bg-black/40 border-b border-gray-100 dark:border-white/5">
                       <tr>
                         <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Producto</th>
                         <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Planificado</th>
                         <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Producción Real</th>
                         <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Diferencia</th>
-                        <th className="px-8 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Eficiencia</th>
-                        <th className="px-8 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Turno</th>
+                        <th className="px-8 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Estado</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-white/5">
+                    <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                       {items.map((item) => (
                         <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
                             <td className="px-8 py-5 font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{item.product}</td>
@@ -221,22 +240,19 @@ export function HistoryPage() {
                               <span className={`text-sm font-black px-3 py-1 rounded-lg ${
                                 item.difference > 0 ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400' :
                                 item.difference < 0 ? 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400' :
-                                'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300'
+                                'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300'
                               }`}>
                                 {item.difference >= 0 ? '+' : ''}{item.difference.toFixed(1)}
                               </span>
                             </td>
                             <td className="px-8 py-5 text-center font-black">
                               <span className={`text-[10px] tracking-widest px-3 py-1.5 rounded-full border ${
-                                item.status === 'Adelanto' ? 'border-amber-200 bg-amber-50 text-amber-700' :
-                                item.status === 'Atraso' ? 'border-red-200 bg-red-50 text-red-700' :
-                                'border-teal-200 bg-teal-50 text-teal-700'
+                                item.status === 'Adelanto' ? 'border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' :
+                                item.status === 'Atraso' ? 'border-red-200 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' :
+                                'border-teal-200 bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/20'
                               }`}>
                                 {item.status.toUpperCase()}
                               </span>
-                            </td>
-                            <td className="px-8 py-5 text-center">
-                              <span className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">{item.shift_type}</span>
                             </td>
                           </tr>
                         ))}
