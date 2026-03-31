@@ -1,25 +1,27 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { History, SECTORS, Sector, SHIFT_TYPES, ShiftType } from '../types';
-import { Calendar, Filter } from 'lucide-react';
+import { History, SECTORS, Sector, SHIFT_TYPES, ShiftType, SECTOR_PRODUCTS } from '../types';
+import { Calendar, Beef, ChefHat, ListRestart, Package, Droplets, Info } from 'lucide-react';
+
+const SECTOR_ICONS: Record<string, any> = {
+  'Mesa de Carnes': Beef,
+  'Cocina': ChefHat,
+  'Picadillo': ListRestart,
+  'Armado': Package,
+  'Salsas': Droplets,
+};
 
 export function HistoryPage() {
-  const [startDate, setStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 7);
-    return date.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSector, setSelectedSector] = useState<Sector>(SECTORS[0]);
-  const [selectedShift, setSelectedShift] = useState<ShiftType | 'Todos'>('Todos');
+  const [selectedShift, setSelectedShift] = useState<ShiftType>(SHIFT_TYPES[0]);
   const [history, setHistory] = useState<History[]>([]);
   const [loading, setLoading] = useState(true);
-  const startInputRef = useRef<HTMLInputElement>(null);
-  const endInputRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadHistory();
-  }, [startDate, endDate, selectedShift]);
+  }, [selectedDate, selectedShift]);
 
   const loadHistory = async () => {
     setLoading(true);
@@ -27,16 +29,9 @@ export function HistoryPage() {
       let query = supabase
         .from('history')
         .select('*')
-        .gte('date', startDate)
-        .lte('date', endDate)
-        .order('date', { ascending: false })
+        .eq('date', selectedDate)
+        .eq('shift_type', selectedShift)
         .order('sector', { ascending: true });
-
-
-
-      if (selectedShift !== 'Todos') {
-        query = query.eq('shift_type', selectedShift);
-      }
 
       const { data, error } = await query;
 
@@ -49,7 +44,11 @@ export function HistoryPage() {
     }
   };
 
-  const filteredHistory = history.filter(item => item.sector === selectedSector);
+  const filteredHistory = history.filter(item => {
+    const sectorProducts = SECTOR_PRODUCTS[selectedSector] as readonly string[];
+    return item.sector === selectedSector && sectorProducts.includes(item.product);
+  });
+  
   const groupedByDate = filteredHistory.reduce((acc, item) => {
     if (!acc[item.date]) {
       acc[item.date] = [];
@@ -68,33 +67,42 @@ export function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300">Historial de Producción</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300">Consulta el histórico de producción</p>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300">Historial de Producción</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300 font-medium">Análisis detallado de la planta por jornada</p>
+        </div>
+        
+        {/* Selector de Fecha Única - Estilo Unificado */}
+        <div 
+          className="relative w-full sm:w-auto min-w-[160px] px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-3 transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-500/50 group text-sm sm:text-base pr-8 shadow-sm"
+          onClick={() => dateInputRef.current?.showPicker()}
+        >
+          <input
+            ref={dateInputRef}
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none"
+          />
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
+            <span className="font-bold">{selectedDate.split('-').reverse().join('/')}</span>
+          </div>
+          <Calendar className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 transition-colors absolute right-3" />
+        </div>
       </div>
 
       <div className="flex flex-col items-center gap-4">
-        <div className="flex justify-center">
-          <button
-            onClick={() => setSelectedShift('Todos')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              selectedShift === 'Todos'
-                ? 'bg-blue-600 dark:bg-blue-600 text-white shadow-md'
-                : 'bg-white dark:bg-[#1a1c23] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
-            }`}
-          >
-            Todos los turnos
-          </button>
-        </div>
         <div className="flex flex-wrap gap-2 justify-center">
           {SHIFT_TYPES.map((shift) => (
             <button
               key={shift}
               onClick={() => setSelectedShift(shift as ShiftType)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`px-8 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${
                 selectedShift === shift
-                  ? 'bg-amber-600 dark:bg-amber-600 text-white shadow-md'
-                  : 'bg-white dark:bg-[#1a1c23] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
+                  ? 'bg-amber-600 text-white shadow-[0_0_15px_rgba(217,119,6,0.4)]'
+                  : 'bg-white dark:bg-[#1a1c23] text-gray-500 border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
               }`}
             >
               Turno {shift}
@@ -103,59 +111,12 @@ export function HistoryPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 transition-all duration-300">
-        <div className="flex items-center space-x-2 mb-4">
-          <Filter className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Filtros</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <Calendar className="w-4 h-4 inline mr-1" />
-              Fecha Inicio
-            </label>
-            <div 
-              className="relative w-full px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-3 transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-500/50 group text-sm sm:text-base"
-              onClick={() => startInputRef.current?.showPicker()}
-            >
-              <input
-                ref={startInputRef}
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none"
-              />
-              <span className="font-medium text-[13px] sm:text-sm">{startDate.split('-').reverse().join('/')}</span>
-              <Calendar className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 transition-colors" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <Calendar className="w-4 h-4 inline mr-1" />
-              Fecha Fin
-            </label>
-            <div 
-              className="relative w-full px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-3 transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-500/50 group text-sm sm:text-base"
-              onClick={() => endInputRef.current?.showPicker()}
-            >
-              <input
-                ref={endInputRef}
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none"
-              />
-              <span className="font-medium text-[13px] sm:text-sm">{endDate.split('-').reverse().join('/')}</span>
-              <Calendar className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 transition-colors" />
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="space-y-6">
         {Object.entries(groupedByDate).length === 0 ? (
-          <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-12 text-center transition-all duration-300">
-            <p className="text-gray-500 dark:text-gray-400 text-lg">No hay registros en el rango seleccionado</p>
+          <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 p-16 text-center transition-all duration-300 flex flex-col items-center gap-4">
+            <Info className="w-12 h-12 text-gray-300 dark:text-white/10 mb-2" />
+            <p className="text-gray-500 dark:text-gray-400 text-xl font-medium italic">No se encontraron registros en la fecha seleccionada</p>
+            <p className="text-gray-400 dark:text-gray-600 text-sm">Prueba seleccionando otro día o turno.</p>
           </div>
         ) : (
           Object.entries(groupedByDate).map(([date, items]) => {
@@ -165,11 +126,11 @@ export function HistoryPage() {
             const overallStatus = totalDifference > 0 ? 'Adelanto' : totalDifference === 0 ? 'OK' : 'Atraso';
 
             return (
-              <div key={date} className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden transition-all duration-300">
-                <div className="bg-gradient-to-r from-blue-700/90 to-blue-900/90 dark:from-blue-900/40 dark:to-blue-800/40 px-6 py-4 border-b dark:border-white/5">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div key={date} className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 overflow-hidden transition-all duration-300">
+                <div className="bg-gradient-to-r from-[#0f172a] to-[#1e293b] px-8 py-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
                     <div>
-                      <h3 className="text-xl font-bold text-white dark:text-gray-100">
+                      <h3 className="text-2xl font-black text-white uppercase tracking-tight">
                         {new Date(date + 'T00:00:00').toLocaleDateString('es-ES', {
                           weekday: 'long',
                           year: 'numeric',
@@ -177,97 +138,105 @@ export function HistoryPage() {
                           day: 'numeric',
                         })}
                       </h3>
-                      <p className="text-blue-100 dark:text-gray-400 text-sm mt-1 font-medium">
-                        {items.length} producto{items.length !== 1 ? 's' : ''} registrado{items.length !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                    <div className="hidden lg:flex flex-wrap gap-1 bg-black/20 p-1 rounded-xl">
-                      {SECTORS.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => setSelectedSector(s)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all uppercase ${
-                            selectedSector === s
-                              ? 'bg-blue-500 text-white shadow-sm'
-                              : 'text-white hover:bg-white/10'
-                          }`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex flex-wrap gap-4 text-white">
-                      <div>
-                        <p className="text-blue-100 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Plan Total</p>
-                        <p className="text-xl font-bold text-white">{totalPlanned.toFixed(0)} kg</p>
-                      </div>
-                      <div>
-                        <p className="text-blue-100 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Producido</p>
-                        <p className="text-xl font-bold text-white">{totalProduced.toFixed(0)} kg</p>
-                      </div>
-                      <div>
-                        <p className="text-blue-100 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Estado</p>
-                        <p className={`text-xl font-bold ${
-                          overallStatus === 'Adelanto' ? 'text-amber-300 dark:text-amber-400' :
-                          overallStatus === 'Atraso' ? 'text-red-300 dark:text-red-400' :
-                          'text-green-300 dark:text-green-400'
-                        }`}>
-                          {overallStatus}
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        <p className="text-blue-200 text-[10px] font-black tracking-[0.2em] uppercase">
+                          Reporte de Eficiencia MES.MG
                         </p>
                       </div>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-4">
+                      {[
+                        { label: 'Plan Total', value: totalPlanned, color: 'text-white' },
+                        { label: 'Producido', value: totalProduced, color: 'text-teal-400' },
+                        { label: 'Estado', value: overallStatus, color: overallStatus === 'Adelanto' ? 'text-amber-400' : overallStatus === 'Atraso' ? 'text-red-500' : 'text-teal-400' }
+                      ].map((kpi, idx) => (
+                        <div key={idx} className="bg-white/5 px-5 py-2.5 rounded-2xl backdrop-blur-md border border-white/10 min-w-[110px]">
+                          <p className="text-gray-400 text-[9px] font-black uppercase tracking-widest mb-1">{kpi.label}</p>
+                          <p className={`text-lg font-black ${kpi.color}`}>
+                            {typeof kpi.value === 'number' ? `${kpi.value.toFixed(0)} kg` : kpi.value.toUpperCase()}
+                          </p>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
 
+                {/* NAVEGACIÓN DE SECTORES - REDISEÑADA */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0 border-b border-gray-200 dark:border-white/5">
+                    {SECTORS.map((s) => {
+                      const Icon = SECTOR_ICONS[s];
+                      return (
+                        <button
+                          key={s}
+                          onClick={() => setSelectedSector(s)}
+                          className={`relative px-6 py-4 flex flex-col items-center gap-2 transition-all duration-300 group ${
+                            selectedSector === s
+                              ? 'bg-blue-600/5 dark:bg-blue-600/10'
+                              : 'bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-white/5'
+                          }`}
+                        >
+                          <div className={`p-2 rounded-xl transition-all duration-300 ${
+                            selectedSector === s
+                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 rotate-0'
+                              : 'bg-gray-100 dark:bg-white/5 text-gray-400 group-hover:text-blue-500 group-hover:rotate-12'
+                          }`}>
+                            {Icon && <Icon className="w-5 h-5" />}
+                          </div>
+                          <span className={`text-[10px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${
+                            selectedSector === s
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : 'text-gray-500 dark:text-gray-500 group-hover:text-gray-900 dark:group-hover:text-gray-300'
+                          }`}>
+                            {s}
+                          </span>
+                          {selectedSector === s && (
+                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 shadow-[0_-2px_10px_rgba(37,99,235,0.5)]"></div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50 dark:bg-black/20 border-b border-gray-200 dark:border-white/5">
+                    <thead className="bg-gray-50 dark:bg-black/40 border-b border-gray-200 dark:border-white/5">
                       <tr>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Sector</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Producto</th>
-                        <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Plan (kg)</th>
-                        <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Producido (kg)</th>
-                        <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Diferencia</th>
-                        <th className="px-6 py-3 text-center text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Estado</th>
-                        <th className="px-6 py-3 text-center text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Turno</th>
+                        <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Producto</th>
+                        <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Planificado</th>
+                        <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Producción Real</th>
+                        <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Diferencia</th>
+                        <th className="px-8 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Eficiencia</th>
+                        <th className="px-8 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Turno</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-white/5">
                       {items.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-200 dark:border-white/5 last:border-0">
-                            <td className="px-6 py-4">
-                              <span className="font-medium text-gray-900 dark:text-gray-100">{item.sector}</span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="text-gray-900 dark:text-gray-100">{item.product}</span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <span className="font-medium text-gray-900 dark:text-white">{item.planned.toFixed(1)}</span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <span className="font-medium text-gray-900 dark:text-white">{item.produced.toFixed(1)}</span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <span className={`font-bold ${
-                                item.difference > 0 ? 'text-green-600 dark:text-green-400' :
-                                item.difference < 0 ? 'text-red-600 dark:text-red-400' :
-                                'text-gray-900 dark:text-gray-100'
+                        <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
+                            <td className="px-8 py-5 font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{item.product}</td>
+                            <td className="px-8 py-5 text-right text-gray-900 dark:text-white font-medium">{item.planned.toFixed(1)} <span className="text-[10px] text-gray-400 font-bold ml-1">KG</span></td>
+                            <td className="px-8 py-5 text-right text-gray-900 dark:text-white font-black">{item.produced.toFixed(1)} <span className="text-[10px] text-gray-400 font-bold ml-1">KG</span></td>
+                            <td className="px-8 py-5 text-right">
+                              <span className={`text-sm font-black px-3 py-1 rounded-lg ${
+                                item.difference > 0 ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400' :
+                                item.difference < 0 ? 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400' :
+                                'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300'
                               }`}>
                                 {item.difference >= 0 ? '+' : ''}{item.difference.toFixed(1)}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
-                                item.status === 'Adelanto' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30' :
-                                item.status === 'Atraso' ? 'bg-red-100 dark:bg-red-500/20 text-red-800 dark:text-red-400 border border-red-200 dark:border-red-500/30' :
-                                'bg-green-100 dark:bg-green-500/20 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-500/30'
+                            <td className="px-8 py-5 text-center font-black">
+                              <span className={`text-[10px] tracking-widest px-3 py-1.5 rounded-full border ${
+                                item.status === 'Adelanto' ? 'border-amber-200 bg-amber-50 text-amber-700' :
+                                item.status === 'Atraso' ? 'border-red-200 bg-red-50 text-red-700' :
+                                'border-teal-200 bg-teal-50 text-teal-700'
                               }`}>
-                                {item.status}
+                                {item.status.toUpperCase()}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className="text-sm text-gray-600 dark:text-gray-400">{item.shift_type}</span>
+                            <td className="px-8 py-5 text-center">
+                              <span className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">{item.shift_type}</span>
                             </td>
                           </tr>
                         ))}
