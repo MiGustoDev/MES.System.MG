@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Production, SECTORS, Sector, SHIFT_TYPES, ShiftType, SECTOR_PRODUCTS, calculateDifference, calculateStatus } from '../types';
 import { Calendar, PlayCircle, Save, StopCircle, AlertTriangle } from 'lucide-react';
+import { formatNumber } from '../utils/format';
 
 const SECTOR_UNITS: Record<string, string> = {
   'Mesa de Carnes': 'KG',
@@ -360,9 +361,9 @@ export function ProductionPage() {
       {/* KPI CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: 'Plan Turno', value: `${totalPlanned.toFixed(0)} ${SECTOR_UNITS[selectedSector]}`, color: 'text-gray-900 dark:text-white' },
-          { label: 'Producido', value: `${totalProduced.toFixed(0)} ${SECTOR_UNITS[selectedSector].toLowerCase()}`, color: 'text-teal-600 dark:text-teal-400 font-black' },
-          { label: 'Diferencia', value: `${totalDifference >= 0 ? '+' : ''}${totalDifference.toFixed(0)} ${SECTOR_UNITS[selectedSector].toLowerCase()}`, color: totalDifference > 0 ? 'text-green-600 dark:text-green-400' : totalDifference < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white' },
+          { label: 'Plan Turno', value: `${formatNumber(totalPlanned, 0)} ${SECTOR_UNITS[selectedSector]}`, color: 'text-gray-900 dark:text-white' },
+          { label: 'Producido', value: `${formatNumber(totalProduced, 0)} ${SECTOR_UNITS[selectedSector].toLowerCase()}`, color: 'text-teal-600 dark:text-teal-400 font-black' },
+          { label: 'Diferencia', value: `${totalDifference >= 0 ? '+' : ''}${formatNumber(totalDifference, 0)} ${SECTOR_UNITS[selectedSector].toLowerCase()}`, color: totalDifference > 0 ? 'text-green-600 dark:text-green-400' : totalDifference < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white' },
           { label: 'Eficiencia', value: overallStatus, color: overallStatus === 'Adelanto' ? 'text-amber-500' : overallStatus === 'Atraso' ? 'text-red-600' : 'text-teal-500' }
         ].map((kpi, i) => (
           <div key={i} className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-4 transition-all duration-300 flex flex-col justify-center min-h-[100px]">
@@ -451,7 +452,7 @@ export function ProductionPage() {
                       <p className="font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors uppercase tracking-tight">{row.product}</p>
                     </td>
                     <td className="px-8 py-5 text-right">
-                      <p className="text-sm font-bold text-gray-400 dark:text-gray-500 tracking-tighter">{plannedForView.toFixed(1)} {SECTOR_UNITS[selectedSector].toUpperCase()}</p>
+                      <p className="text-sm font-bold text-gray-400 dark:text-gray-500 tracking-tighter">{formatNumber(plannedForView, 1)} {SECTOR_UNITS[selectedSector].toUpperCase()}</p>
                     </td>
                     <td className="px-8 py-5">
                       <input
@@ -468,7 +469,7 @@ export function ProductionPage() {
                       <p className={`text-base font-black ${
                         difference > 0 ? 'text-green-600' : difference < 0 ? 'text-red-600' : 'text-gray-400'
                       }`}>
-                        {difference >= 0 ? '+' : ''}{difference.toFixed(1)}
+                        {difference >= 0 ? '+' : ''}{formatNumber(difference, 1)}
                       </p>
                     </td>
                     <td className="px-8 py-5 text-center">

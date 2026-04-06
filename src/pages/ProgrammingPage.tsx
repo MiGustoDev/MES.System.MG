@@ -192,7 +192,7 @@ export function ProgrammingPage() {
           <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300">Gestiona el plan de producción global</p>
           
           {/* ACCIONES DE CABECERA - VERTICALES */}
-          <div className="flex flex-col gap-3 mt-6 w-full sm:w-64">
+          <div className="flex flex-col gap-3 mt-6 w-full sm:w-fit">
              <button
                 onClick={copyFromPreviousDay}
                 disabled={loading}
@@ -359,12 +359,6 @@ export function ProgrammingPage() {
         )}
       </div>
 
-      {/* FOOTER BRAND */}
-      <footer className="pt-8 pb-4 text-center border-t border-gray-100 dark:border-white/5 animate-in fade-in slide-in-from-bottom-2 duration-700">
-        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.3em]">
-          © Desarrollado por el <span className="text-blue-500">Departamento de Sistemas</span> de Mi Gusto | Todos los derechos reservados.
-        </p>
-      </footer>
     </div>
   );
 }

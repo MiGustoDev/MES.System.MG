@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Production, SECTORS, calculateStatus } from '../types';
 import { TrendingUp, TrendingDown, Minus, AlertCircle, ArrowLeft } from 'lucide-react';
+import { formatNumber } from '../utils/format';
 
 export function PlantScreenPage({ onBack }: { onBack: () => void }) {
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -114,7 +115,7 @@ export function PlantScreenPage({ onBack }: { onBack: () => void }) {
             </div>
             <div className="text-right">
               <p className="text-3xl font-medium opacity-90">Cumplimiento</p>
-              <p className="text-7xl font-bold mt-2">{compliance.toFixed(0)}%</p>
+              <p className="text-7xl font-bold mt-2">{formatNumber(compliance, 0)}%</p>
             </div>
           </div>
         </div>
@@ -122,13 +123,13 @@ export function PlantScreenPage({ onBack }: { onBack: () => void }) {
         <div className="grid grid-cols-3 gap-6">
           <div className="bg-white/10 backdrop-blur rounded-3xl p-8 border border-white/20">
             <p className="text-3xl font-medium text-slate-300 mb-3">PLAN TOTAL</p>
-            <p className="text-7xl font-bold">{totalPlanned.toFixed(0)}</p>
+            <p className="text-7xl font-bold">{formatNumber(totalPlanned, 0)}</p>
             <p className="text-3xl text-slate-300 mt-2">kg</p>
           </div>
 
           <div className="bg-white/10 backdrop-blur rounded-3xl p-8 border border-white/20">
             <p className="text-3xl font-medium text-slate-300 mb-3">PRODUCIDO</p>
-            <p className="text-7xl font-bold">{totalProduced.toFixed(0)}</p>
+            <p className="text-7xl font-bold">{formatNumber(totalProduced, 0)}</p>
             <p className="text-3xl text-slate-300 mt-2">kg</p>
           </div>
 
@@ -139,7 +140,7 @@ export function PlantScreenPage({ onBack }: { onBack: () => void }) {
               totalDifference < 0 ? 'text-red-400' :
               'text-white'
             }`}>
-              {totalDifference >= 0 ? '+' : ''}{totalDifference.toFixed(0)}
+              {totalDifference >= 0 ? '+' : ''}{formatNumber(totalDifference, 0)}
             </p>
             <p className="text-3xl text-slate-300 mt-2">kg</p>
           </div>
@@ -164,11 +165,11 @@ export function PlantScreenPage({ onBack }: { onBack: () => void }) {
                     <div className="flex items-center space-x-8 text-right">
                       <div>
                         <p className="text-xl text-slate-300">Plan</p>
-                        <p className="text-3xl font-bold">{planned.toFixed(0)} kg</p>
+                        <p className="text-3xl font-bold">{formatNumber(planned, 0)} kg</p>
                       </div>
                       <div>
                         <p className="text-xl text-slate-300">Producido</p>
-                        <p className="text-3xl font-bold">{produced.toFixed(0)} kg</p>
+                        <p className="text-3xl font-bold">{formatNumber(produced, 0)} kg</p>
                       </div>
                       <div>
                         <p className="text-xl text-slate-300">Diferencia</p>
@@ -177,7 +178,7 @@ export function PlantScreenPage({ onBack }: { onBack: () => void }) {
                           difference < 0 ? 'text-red-400' :
                           'text-white'
                         }`}>
-                          {difference >= 0 ? '+' : ''}{difference.toFixed(0)} kg
+                          {difference >= 0 ? '+' : ''}{formatNumber(difference, 0)} kg
                         </p>
                       </div>
                       <div>

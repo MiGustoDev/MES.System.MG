@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { formatNumber } from '../utils/format';
 import { Production, SECTORS, Sector, calculateDifference, calculateStatus } from '../types';
 import { Calendar, TrendingUp, TrendingDown, Minus, Info, BarChart3, PieChart, Activity, Target } from 'lucide-react';
 import { 
@@ -33,7 +34,7 @@ function CountUpNumber({ end, duration = 1500, decimals = 0, suffix = '', prefix
   return (
     <span>
       {prefix}
-      {count.toLocaleString(undefined, {
+      {count.toLocaleString('es-AR', {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals,
       })}
@@ -460,6 +461,7 @@ export function DashboardPage() {
                   fillOpacity={0.6}
                 />
                 <Tooltip 
+                  formatter={(value: any) => typeof value === 'number' ? formatNumber(value, 0) : value}
                   contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
                 />
               </RadarChart>
@@ -487,9 +489,10 @@ export function DashboardPage() {
               <ComposedChart data={paretoData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
                 <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 10 }} />
-                <YAxis yAxisId="left" tick={{ fill: '#9ca3af' }} label={{ value: 'kg/unid', angle: -90, position: 'insideLeft', fill: '#9ca3af' }} />
+                <YAxis yAxisId="left" tickFormatter={(value) => formatNumber(value, 0)} tick={{ fill: '#9ca3af' }} label={{ value: 'kg/unid', angle: -90, position: 'insideLeft', fill: '#9ca3af' }} />
                 <YAxis yAxisId="right" orientation="right" tick={{ fill: '#9ca3af' }} unit="%" />
                 <Tooltip 
+                  formatter={(value: any) => typeof value === 'number' ? formatNumber(value, 0) : value}
                   contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
                 />
                 <Bar yAxisId="left" dataKey="atraso" fill="#f97316" radius={[4, 4, 0, 0]} />
@@ -521,7 +524,7 @@ export function DashboardPage() {
                 <XAxis type="number" dataKey="x" name="Cumplimiento" unit="%" domain={[0, 150]} tick={{ fill: '#9ca3af' }} />
                 <YAxis type="number" dataKey="y" name="Frecuencia" hide />
                 <ZAxis type="number" dataKey="z" range={[50, 400]} />
-                <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                <Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(value: any) => typeof value === 'number' ? formatNumber(value, 0) : value} />
                 <Scatter name="Productos" data={gaussData} fill="#10b981" />
               </ScatterChart>
             </ResponsiveContainer>
@@ -565,8 +568,9 @@ export function DashboardPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
                 <XAxis dataKey="date" tick={{ fill: '#9ca3af', fontSize: 10 }} />
-                <YAxis tick={{ fill: '#9ca3af' }} />
+                <YAxis tickFormatter={(value) => formatNumber(value, 0)} tick={{ fill: '#9ca3af' }} />
                 <Tooltip 
+                  formatter={(value: any) => typeof value === 'number' ? formatNumber(value, 0) : value}
                   contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
                 />
                 <Area type="monotone" dataKey="total" stroke="#3b82f6" fillOpacity={1} fill="url(#colorTotal)" />
