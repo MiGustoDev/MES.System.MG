@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Production, SECTORS, Sector, SHIFT_TYPES, ShiftType, SECTOR_PRODUCTS, calculateDifference, calculateStatus } from '../types';
-import { Calendar, PlayCircle, Save, StopCircle, AlertTriangle } from 'lucide-react';
+import { Calendar, PlayCircle, Save, StopCircle, AlertTriangle, Pencil, Check } from 'lucide-react';
 import { formatNumber } from '../utils/format';
 
 const SECTOR_UNITS: Record<string, string> = {
@@ -17,20 +17,19 @@ export function ProductionPage() {
   const [selectedSector, setSelectedSector] = useState<Sector>(SECTORS[0]);
   const [selectedShift, setSelectedShift] = useState<ShiftType>(SHIFT_TYPES[0]);
   const [production, setProduction] = useState<Production[]>([]);
-  const [programmingPlan, setProgrammingPlan] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [dayStatus, setDayStatus] = useState<'pending' | 'started' | 'closed'>('pending');
   const [confirmModal, setConfirmModal] = useState<{ show: boolean; title: string; message: string; action: () => void } | null>(null);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       await Promise.all([
-        loadProduction(),
-        loadProgrammingPlan()
+        loadProduction()
       ]);
       setLoading(false);
     };
@@ -80,26 +79,6 @@ export function ProductionPage() {
     }
   };
 
-  const loadProgrammingPlan = async () => {
-    try {
-      let query = supabase
-        .from('programming')
-        .select('*')
-        .eq('date', selectedDate)
-        .eq('shift_type', selectedShift);
-
-      const { data, error } = await (query as any);
-      if (error) throw error;
-
-      const plan: Record<string, number> = {};
-      (data as any[]).forEach(row => {
-        plan[row.product] = (plan[row.product] || 0) + row.planned_kg;
-      });
-      setProgrammingPlan(plan);
-    } catch (error) {
-      console.error('Error loading programming plan:', error);
-    }
-  };
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -108,6 +87,10 @@ export function ProductionPage() {
 
   const updateProduced = (id: string, value: number) => {
     setProduction(production.map(p => p.id === id ? { ...p, produced: value } : p));
+  };
+
+  const updatePlanned = (id: string, value: number) => {
+    setProduction(production.map(p => p.id === id ? { ...p, planned: value } : p));
   };
 
   const saveProduction = async () => {
@@ -442,8 +425,7 @@ export function ProductionPage() {
                   return p.sector === selectedSector && sectorProducts.includes(p.product);
                 })
                 .map((row) => {
-                const plannedForView = programmingPlan[row.product] || 0;
-                const difference = calculateDifference(row.produced, plannedForView);
+                const difference = calculateDifference(row.produced, row.planned);
                 const status = calculateStatus(difference);
 
                 return (
@@ -452,7 +434,40 @@ export function ProductionPage() {
                       <p className="font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors uppercase tracking-tight">{row.product}</p>
                     </td>
                     <td className="px-8 py-5 text-right">
-                      <p className="text-sm font-bold text-gray-400 dark:text-gray-500 tracking-tighter">{formatNumber(plannedForView, 1)} {SECTOR_UNITS[selectedSector].toUpperCase()}</p>
+                      {editingPlanId === row.id ? (
+                        <div className="flex items-center justify-end gap-2 animate-in zoom-in-95 duration-200">
+                          <input
+                            type="number"
+                            value={row.planned}
+                            onChange={(e) => updatePlanned(row.id, parseFloat(e.target.value) || 0)}
+                            onBlur={() => setEditingPlanId(null)}
+                            onKeyDown={(e) => e.key === 'Enter' && setEditingPlanId(null)}
+                            autoFocus
+                            className="w-28 px-3 py-1.5 text-right bg-blue-50 dark:bg-blue-600/20 border border-blue-400 dark:border-blue-500/50 rounded-xl text-blue-700 dark:text-blue-100 font-black text-sm focus:ring-4 focus:ring-blue-500/20 outline-none transition-all"
+                          />
+                          <button 
+                            onClick={() => setEditingPlanId(null)}
+                            className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg shadow-blue-600/20"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-2 group/plan">
+                          <p className="text-sm font-bold text-gray-400 dark:text-gray-500 tracking-tighter transition-colors group-hover/plan:text-blue-500">
+                            {formatNumber(row.planned, 1)} {SECTOR_UNITS[selectedSector].toUpperCase()}
+                          </p>
+                          {dayStatus !== 'closed' && (
+                            <button
+                              onClick={() => setEditingPlanId(row.id)}
+                              className="md:opacity-0 group-hover/plan:opacity-100 p-1.5 hover:bg-blue-50 dark:hover:bg-blue-600/10 rounded-lg transition-all text-gray-300 hover:text-blue-600"
+                              title="Corregir Plan"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-8 py-5">
                       <input
