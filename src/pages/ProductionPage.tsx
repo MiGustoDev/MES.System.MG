@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Production, SECTORS, Sector, SHIFT_TYPES, ShiftType, SECTOR_PRODUCTS, calculateDifference, calculateStatus } from '../types';
-import { Calendar, PlayCircle, Save, StopCircle, AlertTriangle, Pencil, Check } from 'lucide-react';
+import { Calendar, PlayCircle, Save, StopCircle, AlertTriangle, Pencil, Check, TrendingUp, Package } from 'lucide-react';
 import { formatNumber } from '../utils/format';
 
 const SECTOR_UNITS: Record<string, string> = {
@@ -105,6 +105,7 @@ export function ProductionPage() {
         shift_type: p.shift_type,
         planned: p.planned,
         produced: Number.isFinite(p.produced) ? p.produced : 0,
+        machine: p.machine || null,
       }));
 
       const { error } = await (supabase
@@ -168,6 +169,7 @@ export function ProductionPage() {
         shift_type: selectedShift,
         planned: row.planned_kg,
         produced: 0,
+        machine: row.machine || null,
       }));
 
       const { error } = await (supabase
@@ -202,6 +204,7 @@ export function ProductionPage() {
           difference: diff,
           status: calculateStatus(diff),
           shift_type: selectedShift,
+          machine: p.machine || null,
         };
       });
 
@@ -405,8 +408,85 @@ export function ProductionPage() {
         <div className="hidden lg:block"></div>
       </div>
 
-      {/* DATA TABLE */}
-      <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 overflow-hidden">
+      {/* DATA AREA - TABLE OR GRID */}
+      {selectedSector === 'Armado' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-8 px-2">
+          {Array.from(new Set(
+            production
+              .filter(p => p.sector === 'Armado' && p.machine)
+              .map(p => p.machine!)
+          )).sort().map((machineName) => {
+            const machineRows = production.filter(p => p.sector === 'Armado' && p.machine === machineName);
+            const totalPlannedM = machineRows.reduce((sum, r) => sum + r.planned, 0);
+            const totalProducedM = machineRows.reduce((sum, r) => sum + r.produced, 0);
+
+            return (
+              <div key={machineName} className="group/card">
+                <div className="h-full bg-white dark:bg-[#1a1c23] rounded-[2.5rem] shadow-2xl border border-gray-200 dark:border-white/5 overflow-hidden flex flex-col transition-all duration-500 hover:border-blue-500/40 relative">
+                  <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/5 blur-[80px] rounded-full pointer-events-none group-hover/card:bg-blue-500/10 transition-colors duration-500"></div>
+                  
+                  <div className="px-8 py-6 bg-gray-50/50 dark:bg-black/20 border-b dark:border-white/10 flex justify-between items-center relative z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
+                      <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">{machineName}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-6 space-y-4 flex-1 overflow-y-auto max-h-[600px] scrollbar-none relative z-10">
+                    {machineRows.map((row) => {
+                      const difference = calculateDifference(row.produced, row.planned);
+                      const status = calculateStatus(difference);
+
+                      return (
+                        <div key={row.id} className="relative bg-gray-50/50 dark:bg-black/20 p-2 rounded-2xl border border-gray-100 dark:border-white/5 transition-all duration-300 hover:border-blue-500/30 group/row flex items-center gap-2">
+                          <div className="flex-[1.5] min-w-0 bg-white dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5 px-3 py-2 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <Package className="w-3.5 h-3.5 text-blue-500 opacity-50 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] font-black text-gray-900 dark:text-white uppercase tracking-tight truncate">{row.product}</p>
+                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Plan: {formatNumber(row.planned, 1)}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="w-28 relative group/input">
+                            <input
+                              type="number"
+                              disabled={dayStatus === 'closed' || dayStatus !== 'started'}
+                              value={row.produced}
+                              onChange={(e) => updateProduced(row.id, parseFloat(e.target.value) || 0)}
+                              className="w-full pl-2 pr-3 py-2 text-xl font-black text-right bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 rounded-xl text-gray-900 dark:text-white transition-all outline-none group-hover/input:border-blue-500/40 shadow-sm disabled:opacity-50"
+                            />
+                            <div className={`absolute -right-1 -top-1 w-4 h-4 rounded-full border-2 border-white dark:border-[#1a1c23] shadow-sm ${
+                              status === 'Adelanto' ? 'bg-amber-500' : status === 'Atraso' ? 'bg-red-500' : 'bg-teal-500'
+                            }`} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="px-8 py-8 bg-gray-50/80 dark:bg-black/40 border-t dark:border-white/10 flex justify-between items-center relative z-10">
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total Estación</p>
+                      <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">
+                        {formatNumber(totalProducedM, 0)} <span className="text-xs text-blue-500 uppercase">bandejas</span>
+                      </p>
+                      <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${totalProducedM >= totalPlannedM ? 'text-teal-500' : 'text-red-500'}`}>
+                        {totalProducedM >= totalPlannedM ? 'Meta Alcanzada' : `${formatNumber(totalPlannedM - totalProducedM, 0)} restatntes`}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+                      <TrendingUp className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-black/20 border-b border-gray-200 dark:border-white/10">
@@ -432,6 +512,9 @@ export function ProductionPage() {
                   <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 dark:border-white/5 last:border-0 group">
                     <td className="px-8 py-5">
                       <p className="font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors uppercase tracking-tight">{row.product}</p>
+                      {row.machine && (
+                        <p className="text-[9px] font-black text-blue-500 dark:text-blue-400 mt-0.5 uppercase tracking-widest">{row.machine}</p>
+                      )}
                     </td>
                     <td className="px-8 py-5 text-right">
                       {editingPlanId === row.id ? (
@@ -513,6 +596,7 @@ export function ProductionPage() {
           </table>
         </div>
       </div>
+    )}
     </div>
   );
 }

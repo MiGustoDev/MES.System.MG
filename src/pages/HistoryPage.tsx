@@ -12,6 +12,14 @@ const SECTOR_ICONS: Record<string, any> = {
   'Salsas': Droplets,
 };
 
+const SECTOR_UNITS: Record<string, string> = {
+  'Mesa de Carnes': 'KG',
+  'Cocina': 'Cocciones',
+  'Picadillo': 'Bateas',
+  'Armado': 'Bandejas',
+  'Salsas': 'Unidades',
+};
+
 export function HistoryPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSector, setSelectedSector] = useState<Sector>(SECTORS[0]);
@@ -171,8 +179,8 @@ export function HistoryPage() {
             {/* KPI CARDS POR SECTOR */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-gray-50/30 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
               {[
-                { label: 'META SECTOR', value: `${formatNumber(totalPlanned, 0)} kg`, icon: Target, color: 'text-gray-900 dark:text-white' },
-                { label: 'REAL LOGRADO', value: `${formatNumber(totalProduced, 0)} kg`, icon: TrendingUp, color: 'text-teal-600 dark:text-teal-400' },
+                { label: 'META SECTOR', value: `${formatNumber(totalPlanned, 0)} ${SECTOR_UNITS[selectedSector].toLowerCase()}`, icon: Target, color: 'text-gray-900 dark:text-white' },
+                { label: 'REAL LOGRADO', value: `${formatNumber(totalProduced, 0)} ${SECTOR_UNITS[selectedSector].toLowerCase()}`, icon: TrendingUp, color: 'text-teal-600 dark:text-teal-400' },
                 { label: 'ESTADO ACTUAL', value: overallStatus.toUpperCase(), icon: Activity, color: overallStatus === 'Adelanto' ? 'text-amber-500' : overallStatus === 'Atraso' ? 'text-red-600' : 'text-teal-500' }
               ].map((kpi, idx) => (
                 <div key={idx} className="bg-white dark:bg-black/20 p-4 rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex items-center gap-4">
@@ -202,9 +210,14 @@ export function HistoryPage() {
                 <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                   {filteredHistory.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
-                      <td className="px-8 py-5 font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{item.product}</td>
-                      <td className="px-8 py-5 text-right text-gray-900 dark:text-white font-medium">{formatNumber(item.planned, 1)} <span className="text-[10px] text-gray-400 font-bold ml-1">KG</span></td>
-                      <td className="px-8 py-5 text-right text-gray-900 dark:text-white font-black">{formatNumber(item.produced, 1)} <span className="text-[10px] text-gray-400 font-bold ml-1">KG</span></td>
+                      <td className="px-8 py-5">
+                        <p className="font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{item.product}</p>
+                        {item.machine && (
+                          <p className="text-[9px] font-black text-blue-500 dark:text-blue-400 mt-0.5 uppercase tracking-widest">{item.machine}</p>
+                        )}
+                      </td>
+                      <td className="px-8 py-5 text-right text-gray-900 dark:text-white font-medium">{formatNumber(item.planned, 1)} <span className="text-[10px] text-gray-400 font-bold ml-1">{SECTOR_UNITS[selectedSector].toUpperCase()}</span></td>
+                      <td className="px-8 py-5 text-right text-gray-900 dark:text-white font-black">{formatNumber(item.produced, 1)} <span className="text-[10px] text-gray-400 font-bold ml-1">{SECTOR_UNITS[selectedSector].toUpperCase()}</span></td>
                       <td className="px-8 py-5 text-right">
                         <span className={`text-sm font-black px-3 py-1 rounded-lg ${
                           item.difference > 0 ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400' :

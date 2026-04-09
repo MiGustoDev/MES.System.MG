@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Programming, SECTOR_PRODUCTS, SECTORS, SHIFT_TYPES, Sector, ShiftType } from '../types';
-import { Calendar, Copy, Save, RefreshCw } from 'lucide-react';
+import { Calendar, Copy, Save, RefreshCw, Plus, Trash2, TrendingUp, Pencil, Check, Package, FileText, ClipboardList } from 'lucide-react';
 
 export function ProgrammingPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -11,7 +11,29 @@ export function ProgrammingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [machineNames, setMachineNames] = useState<string[]>([]);
+  const [editingMachine, setEditingMachine] = useState<string | null>(null);
+  const [tempMachineName, setTempMachineName] = useState('');
+  const [showExcelPanel, setShowExcelPanel] = useState(false);
+  const [excelPasteData, setExcelPasteData] = useState<string>('');
+  const [excelComparison, setExcelComparison] = useState<Record<string, number>>({});
   const dateInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (selectedSector === 'Armado') {
+      const existingMachines = Array.from(new Set(
+        programming
+          .filter((p: Programming) => p.sector === 'Armado' && (p.shift_type ?? 'Mañana') === selectedShift && p.machine)
+          .map((p: Programming) => p.machine!)
+      )).sort();
+      
+      if (existingMachines.length > 0) {
+        setMachineNames(existingMachines);
+      } else {
+        setMachineNames(['MÁQUINA 1', 'MÁQUINA 2', 'MÁQUINA 3']);
+      }
+    }
+  }, [selectedSector, selectedShift, loading]);
 
   useEffect(() => {
     loadProgramming();
@@ -38,7 +60,7 @@ export function ProgrammingPage() {
     return rows;
   };
 
-  const programmingKey = (sector: string, product: string, shiftType: ShiftType) => `${sector}||${product}||${shiftType}`;
+  const programmingKey = (sector: string, product: string, shiftType: ShiftType, machine?: string) => `${sector}||${product}||${shiftType}||${machine ?? ''}`;
 
   const loadProgramming = async () => {
     setLoading(true);
@@ -59,14 +81,29 @@ export function ProgrammingPage() {
       }
 
       const dataByKey = new Map(
-        (data as any[]).map((row) => [programmingKey(row.sector, row.product, (row.shift_type ?? 'Mañana') as ShiftType), row])
+        (data as any[]).map((row) => [programmingKey(row.sector, row.product, (row.shift_type ?? 'Mañana') as ShiftType, row.machine), row])
       );
 
       const rows = defaultRows.map((defaultRow) => {
-        const key = programmingKey(defaultRow.sector, defaultRow.product, (defaultRow.shift_type ?? 'Mañana') as ShiftType);
+        const key = programmingKey(defaultRow.sector, defaultRow.product, (defaultRow.shift_type ?? 'Mañana') as ShiftType, defaultRow.machine);
         const existing = dataByKey.get(key);
         return existing ?? defaultRow;
       });
+
+      // For Armado, we might have extra rows (machines) that are not in defaultRows
+      if (selectedSector === 'Armado') {
+        const extraRows = (data as any[])
+          .filter(row => row.sector === 'Armado' && row.machine)
+          .map(row => row as Programming);
+        
+        // Combine keeping existing if they were already in rows (to avoid duplicates)
+        const rowIds = new Set(rows.map(r => r.id));
+        extraRows.forEach(extra => {
+          if (!rowIds.has(extra.id)) {
+            rows.push(extra);
+          }
+        });
+      }
 
       setProgramming(rows as Programming[]);
     } catch (error) {
@@ -82,8 +119,43 @@ export function ProgrammingPage() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const updateRow = (id: string, field: keyof Programming, value: string | number) => {
-    setProgramming(programming.map(p => p.id === id ? { ...p, [field]: value } : p));
+  const updateRow = (id: string, field: keyof Programming, value: any) => {
+    setProgramming(programming.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
+  };
+
+  const updateMachineName = (oldName: string, newName: string) => {
+    setMachineNames(machineNames.map(m => m === oldName ? newName : m));
+    setProgramming(programming.map(p => 
+      (p.sector === 'Armado' && p.machine === oldName) 
+        ? { ...p, machine: newName } 
+        : p
+    ));
+  };
+
+  const handleMachineNameSubmit = (oldName: string) => {
+    if (tempMachineName.trim() && tempMachineName !== oldName) {
+      updateMachineName(oldName, tempMachineName.toUpperCase());
+    }
+    setEditingMachine(null);
+  };
+
+  const handleExcelPaste = (text: string) => {
+    setExcelPasteData(text);
+    const lines = text.split('\n');
+    const data: Record<string, number> = {};
+    
+    lines.forEach(line => {
+      // Intentar procesar formatos comunes: "PRODUCTO CANTIDAD" o "PRODUCTO\tCANTIDAD"
+      const parts = line.split(/[\t\s]{2,}|[\t]/);
+      if (parts.length >= 2) {
+        const product = parts[0].trim().toUpperCase();
+        const quantity = parseFloat(parts[1].replace(',', '.').replace(/[^0-9.]/g, ''));
+        if (product && !isNaN(quantity)) {
+          data[product] = (data[product] || 0) + quantity;
+        }
+      }
+    });
+    setExcelComparison(data);
   };
 
   const saveProgramming = async () => {
@@ -104,6 +176,7 @@ export function ProgrammingPage() {
           product: p.product,
           shift_type: p.shift_type ?? 'Mañana',
           planned_kg: Number.isFinite(p.planned_kg) ? p.planned_kg : 0,
+          machine: p.machine || null,
         }));
 
       if (dataToInsert.length > 0) {
@@ -146,11 +219,11 @@ export function ProgrammingPage() {
       }
 
       const dataByKey = new Map(
-        (data as any[]).map((row) => [programmingKey(row.sector, row.product, (row.shift_type ?? 'Mañana') as ShiftType), row])
+        (data as any[]).map((row) => [programmingKey(row.sector, row.product, (row.shift_type ?? 'Mañana') as ShiftType, row.machine), row])
       );
 
       const copiedData = buildAllDefaultRows(selectedDate).map((row) => {
-        const key = programmingKey(row.sector, row.product, (row.shift_type ?? 'Mañana') as ShiftType);
+        const key = programmingKey(row.sector, row.product, (row.shift_type ?? 'Mañana') as ShiftType, row.machine);
         const existing = dataByKey.get(key);
         if (!existing) return row;
 
@@ -160,7 +233,17 @@ export function ProgrammingPage() {
         };
       });
 
-      setProgramming(copiedData);
+      // Special case for Armado machines that might not be in defaults
+      const extraCopied = (data as any[])
+        .filter(row => row.sector === 'Armado' && row.machine)
+        .map(row => ({
+          ...row,
+          id: `temp-${selectedDate}-${row.machine}-${row.product}-${Math.random()}`,
+          date: selectedDate,
+          created_at: new Date().toISOString()
+        }));
+
+      setProgramming([...copiedData, ...extraCopied]);
       showMessage('success', `Copiada programación del día anterior`);
     } catch (error) {
       console.error('Error copying from previous day:', error);
@@ -183,6 +266,13 @@ export function ProgrammingPage() {
       row.sector === selectedSector && 
       (row.shift_type ?? 'Mañana') === selectedShift
   );
+
+  const totalsByProduct = programming
+    .filter(p => p.sector === 'Armado' && (p.shift_type ?? 'Mañana') === selectedShift)
+    .reduce((acc, p) => {
+      acc[p.product] = (acc[p.product] || 0) + (p.planned_kg || 0);
+      return acc;
+    }, {} as Record<string, number>);
 
   return (
     <div className="space-y-6">
@@ -294,6 +384,439 @@ export function ProgrammingPage() {
           const isPicadilloMP = sectionTitle === 'MATERIA PRIMA PROCESADA';
           const picadilloMPList = ['HUEVO', 'MUZZARELLA PICADA ARMADO', 'PANCETA FETEADA', 'CHEDDAR PICADO', 'BOLLOS PA', 'JAMON FETEADO', 'JAMON CUBETEADO', 'PROVOLETA PICADA', 'SARDO PICADO', 'CHEDDAR AC', 'CHEDDAR EB', 'CHEDDAR TONADITA', 'PESADO CH', 'CHERRY', 'CIRUELA', 'PESADO 4Q', 'PESADO RJ', 'BOLLOS JQ'];
           
+          if (selectedSector === 'Armado') {
+            const sectorProgramming = programming.filter(p => p.sector === 'Armado' && (p.shift_type ?? 'Mañana') === selectedShift);
+
+            return (
+              <div key={sectionTitle} className="relative">
+                {/* GRID DE MÁQUINAS (IZQUIERDA) */}
+                <div className="space-y-8">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white/50 dark:bg-white/5 backdrop-blur-xl p-6 rounded-3xl border border-white/20 dark:border-white/10 shadow-2xl gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-blue-500/10 rounded-2xl border border-blue-500/20">
+                        <Plus className="w-6 h-6 text-blue-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Líneas de Armado</h3>
+                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mt-0.5">Distribución de carga por máquina</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setShowExcelPanel(true)}
+                        className="group flex items-center gap-3 px-6 py-3 bg-white dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/10 rounded-2xl hover:border-blue-500/50 transition-all font-black text-xs uppercase tracking-widest shadow-xl"
+                      >
+                        <ClipboardList className="w-4 h-4 text-blue-500" />
+                        <span>Referencia Excel</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const nextNum = machineNames.length + 1;
+                          setMachineNames([...machineNames, `MÁQUINA ${nextNum}`]);
+                        }}
+                        className="group flex items-center gap-3 px-6 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95"
+                      >
+                        <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" />
+                        <span>Añadir Máquina</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-8 px-2">
+                    {machineNames.map((machineName: string) => {
+                      const machineRows = sectorProgramming.filter(p => p.machine === machineName);
+                      const totalBnd = machineRows.reduce((sum, r) => sum + (Number.isFinite(r.planned_kg) ? r.planned_kg : 0), 0);
+
+                      return (
+                        <div key={machineName} className="group/card">
+                          <div className="h-full bg-white dark:bg-[#1a1c23] rounded-[2.5rem] shadow-2xl border border-gray-200 dark:border-white/5 overflow-hidden flex flex-col transition-all duration-500 hover:border-blue-500/40 relative">
+                            {/* Card Glow Effect */}
+                            <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/5 blur-[80px] rounded-full pointer-events-none group-hover/card:bg-blue-500/10 transition-colors duration-500"></div>
+                            
+                            <div className="px-8 py-6 bg-gray-50/50 dark:bg-black/20 border-b dark:border-white/10 flex justify-between items-center relative z-10">
+                              <div className="flex items-center gap-3 flex-1">
+                                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] flex-shrink-0"></div>
+                                
+                                {editingMachine === machineName ? (
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <input
+                                      autoFocus
+                                      value={tempMachineName}
+                                      onChange={(e) => setTempMachineName(e.target.value)}
+                                      onKeyDown={(e) => e.key === 'Enter' && handleMachineNameSubmit(machineName)}
+                                      className="bg-transparent border-none text-xs font-black text-gray-900 dark:text-white uppercase tracking-[0.2em] focus:ring-0 p-0 w-full outline-none"
+                                    />
+                                    <button 
+                                      onClick={() => handleMachineNameSubmit(machineName)}
+                                      className="text-green-500 hover:scale-110 transition-transform"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 group/name cursor-pointer" onClick={() => {
+                                    setEditingMachine(machineName);
+                                    setTempMachineName(machineName);
+                                  }}>
+                                    <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">{machineName}</span>
+                                    <Pencil className="w-3 h-3 text-gray-400 opacity-0 group-hover/name:opacity-100 transition-all" />
+                                  </div>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`¿Eliminar ${machineName} y toda su carga?`)) {
+                                    setProgramming(programming.filter(p => p.machine !== machineName || p.sector !== 'Armado' || (p.shift_type ?? 'Mañana') !== selectedShift));
+                                    setMachineNames(machineNames.filter(m => m !== machineName));
+                                  }
+                                }}
+                                className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover/card:opacity-100"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            
+                            <div className="p-6 space-y-4 flex-1 overflow-y-auto max-h-[600px] scrollbar-none relative z-10">
+                              {machineRows.map((row) => (
+                                <div key={row.id} className="relative bg-gray-50/50 dark:bg-black/20 p-2 rounded-2xl border border-gray-100 dark:border-white/5 transition-all duration-300 hover:border-blue-500/30 group/row flex items-center gap-2">
+                                  {/* PRODUCT SELECT CONTAINER */}
+                                  <div className="flex-[1.5] min-w-0 bg-white dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5 px-3 py-2 transition-all group-hover/row:border-blue-500/20 shadow-sm">
+                                    <div className="flex items-center gap-2">
+                                      <Package className="w-3.5 h-3.5 text-blue-500 opacity-50 flex-shrink-0" />
+                                      <select
+                                        value={row.product}
+                                        onChange={(e) => updateRow(row.id, 'product', e.target.value)}
+                                        className="w-full bg-transparent border-none text-[13px] font-black text-gray-900 dark:text-white p-0 focus:ring-0 cursor-pointer uppercase tracking-tight truncate"
+                                      >
+                                        {SECTOR_PRODUCTS.Armado.map(prod => (
+                                          <option key={prod} value={prod} className="bg-white dark:bg-[#1a1c23]">{prod}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </div>
+
+                                  {/* QUANTITY INPUT CONTAINER */}
+                                  <div className="w-32 relative group/input">
+                                    <input
+                                      type="number"
+                                      value={Number.isFinite(row.planned_kg) ? row.planned_kg : ''}
+                                      onChange={(e) => updateRow(
+                                        row.id,
+                                        'planned_kg',
+                                        e.target.value === '' ? Number.NaN : parseFloat(e.target.value)
+                                      )}
+                                      placeholder="0"
+                                      className="w-full pl-9 pr-3 py-2 text-xl font-black text-right bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 rounded-xl text-gray-900 dark:text-white transition-all outline-none placeholder:opacity-10 group-hover/input:border-blue-500/40 shadow-sm"
+                                    />
+                                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2">
+                                      <span className="text-[7px] font-black text-blue-500 bg-blue-500/10 px-1 py-0.5 rounded uppercase tracking-tighter border border-blue-500/20">Bandejas</span>
+                                    </div>
+                                  </div>
+
+                                  {/* REMOVE BUTTON */}
+                                  <button
+                                    onClick={() => setProgramming(programming.filter(p => p.id !== row.id))}
+                                    className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover/row:opacity-100"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+
+                              <button
+                                onClick={() => {
+                                  const newRow: Programming = {
+                                    id: `temp-${Date.now()}-${Math.random()}`,
+                                    date: selectedDate,
+                                    sector: 'Armado',
+                                    product: SECTOR_PRODUCTS.Armado[0],
+                                    shift_type: selectedShift,
+                                    planned_kg: 0,
+                                    machine: machineName,
+                                    created_at: new Date().toISOString(),
+                                  };
+                                  setProgramming([...programming, newRow]);
+                                }}
+                                className="w-full py-5 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-[2rem] text-gray-400 hover:text-blue-500 hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-blue-500/5 transition-all flex flex-col items-center justify-center gap-2 group/addbtn mt-2"
+                              >
+                                <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-full group-hover/addbtn:bg-blue-500/10 transition-colors">
+                                  <Plus className="w-5 h-5 transition-transform group-hover/addbtn:rotate-90 group-hover/addbtn:scale-110" />
+                                </div>
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Cargar Producto</span>
+                              </button>
+                            </div>
+                            
+                            <div className="px-8 py-8 bg-gray-50/80 dark:bg-black/40 border-t dark:border-white/10 flex justify-between items-center relative z-10">
+                              <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total Máquina</p>
+                                <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">
+                                  {totalBnd} <span className="text-xs text-blue-500 uppercase">bandejas</span>
+                                </p>
+                              </div>
+                              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+                                <TrendingUp className="w-6 h-6 text-white" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                    <div 
+                  className={`fixed inset-y-0 right-0 z-[100] transform transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+                    showExcelPanel 
+                      ? 'translate-x-0 w-full md:w-[450px]' 
+                      : 'translate-x-[calc(100%-150px)] w-[150px]'
+                  }`}
+                >
+                  {/* MINI HANDLE / PEEK VIEW (Visible cuando está cerrado) */}
+                  {!showExcelPanel && (
+                    <button 
+                      onClick={() => setShowExcelPanel(true)}
+                      className="absolute inset-y-0 left-0 w-full flex flex-col bg-blue-600 dark:bg-[#1a1c23] backdrop-blur-md transition-colors cursor-pointer group/peek border-l border-white/10 shadow-[-20px_0_60px_rgba(0,0,0,0.5)]"
+                    >
+                      {/* HEADER MINI - MÁS GRANDE */}
+                      <div className="p-5 bg-blue-700/50 w-full flex items-center justify-between border-b border-white/10">
+                        <div className="flex items-center gap-3">
+                          <ClipboardList className="w-6 h-6 text-white" />
+                          <span className="text-xs font-black text-white uppercase tracking-widest">Plan Excel</span>
+                        </div>
+                      </div>
+
+                      {/* LISTA DE CARDS - FUENTES MEJORADAS */}
+                      <div className="flex-1 w-full overflow-y-auto overflow-x-hidden px-4 py-8 space-y-5 scrollbar-none text-left">
+                        {Object.entries(excelComparison).map(([product, target]) => {
+                          const programmed = totalsByProduct[product] || 0;
+                          const diff = programmed - target;
+
+                          return (
+                            <div key={product} className={`w-full rounded-[1.5rem] p-5 border transition-all duration-500 relative overflow-hidden ${
+                              diff === 0 
+                                ? 'bg-teal-500/20 border-teal-400 shadow-[0_0_30px_rgba(20,184,166,0.1)]' 
+                                : 'bg-white/10 border-white/20'
+                            }`}>
+                              <div className="flex justify-between items-start mb-4">
+                                <div className="flex items-center gap-3">
+                                  <span className={`text-sm font-black uppercase tracking-tight truncate pr-2 max-w-[80px] ${diff === 0 ? 'text-teal-400' : 'text-white'}`}>
+                                    {product}
+                                  </span>
+                                  {diff === 0 && <Check className="w-5 h-5 text-teal-400" />}
+                                </div>
+                                <div className={`px-2 py-1 rounded-lg text-[10px] font-black shadow-lg ${
+                                  diff === 0 ? 'bg-teal-500 text-white' : diff > 0 ? 'bg-blue-500 text-white' : 'bg-red-500 shadow-red-500/30 font-black text-white'
+                                }`}>
+                                  {diff === 0 ? 'OK' : (diff > 0 ? '+' : '') + diff}
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-4">
+                                <div className="flex flex-col">
+                                  <span className="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none mb-1">PLAN</span>
+                                  <span className="text-sm font-black text-white leading-none">{target}</span>
+                                </div>
+                                <div className="w-px h-6 bg-white/10"></div>
+                                <div className="flex flex-col">
+                                  <span className={`text-[9px] font-black uppercase tracking-widest leading-none mb-1 ${diff === 0 ? 'text-teal-400' : 'text-blue-400'}`}>PROG.</span>
+                                  <span className="text-sm font-black text-white leading-none">{programmed}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                    <div className="p-6 bg-black/40 border-t border-white/20">
+                      <div className="flex flex-col gap-6">
+                        {/* META TOTAL STACKED */}
+                        <div className="flex flex-col items-center text-center">
+                          <span className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Meta Total</span>
+                          <span className="text-3xl font-black text-white tracking-tighter shadow-sm">
+                            {Object.values(excelComparison).reduce((a, b) => a + b, 0)}
+                          </span>
+                        </div>
+                        
+                        {/* DIF GLOBAL STACKED */}
+                        <div className="flex flex-col items-center text-center">
+                          <span className="text-[11px] font-black text-blue-400 uppercase tracking-[0.2em] mb-2">Diferencia</span>
+                          <div className={`w-full py-3 rounded-2xl text-2xl font-black shadow-2xl border-2 flex items-center justify-center ${
+                            (Object.values(totalsByProduct).reduce((a, b) => a + b, 0) - Object.values(excelComparison).reduce((a, b) => a + b, 0)) >= 0 
+                            ? 'bg-teal-500 border-teal-300 text-white shadow-teal-500/10' 
+                            : 'bg-red-500 border-red-400 text-white shadow-red-500/20'
+                          }`}>
+                            {Object.values(totalsByProduct).reduce((a, b) => a + b, 0) - Object.values(excelComparison).reduce((a, b) => a + b, 0)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                      <div className="flex flex-col items-center gap-1.5 opacity-40">
+                         <div className="w-6 h-1 bg-white/50 rounded-full"></div>
+                         <div className="w-8 h-1 bg-white rounded-full"></div>
+                         <div className="w-6 h-1 bg-white/50 rounded-full"></div>
+                      </div>
+                    </button>
+                  )}
+
+                  <div className={`h-full bg-white dark:bg-[#1a1c23] border-l border-gray-200 dark:border-white/10 flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.2)] ${!showExcelPanel ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                    <div className="px-8 py-7 bg-blue-600 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                          <ClipboardList className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-black text-white uppercase tracking-wider">Referencia de Plan</h4>
+                          <p className="text-[10px] font-bold text-blue-100 uppercase opacity-70 tracking-widest">Sincronización con Excel</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setShowExcelPanel(false)}
+                        className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all hover:rotate-90"
+                      >
+                        <Trash2 className="w-5 h-5 text-white rotate-45" />
+                      </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-none">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between px-2">
+                          <h5 className="text-[11px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Área de Pegado</h5>
+                          <span className="text-[9px] font-bold text-blue-500 uppercase bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">Control-V para pegar</span>
+                        </div>
+                        <div className="relative group">
+                          <textarea
+                            value={excelPasteData}
+                            onChange={(e) => handleExcelPaste(e.target.value)}
+                            placeholder="Ejemplo: MUZZARELLA 1500"
+                            className="w-full h-40 p-6 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-[2.5rem] text-sm font-medium text-gray-700 dark:text-gray-300 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all resize-none shadow-inner"
+                          />
+                          <FileText className="absolute right-6 bottom-6 w-5 h-5 text-blue-500 opacity-20 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between px-2">
+                          <h5 className="text-[11px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Comparativa MES vs Excel</h5>
+                        </div>
+                        <div className="space-y-3">
+                          {Object.keys(excelComparison).length === 0 ? (
+                            <div className="py-20 text-center space-y-4 bg-gray-50/50 dark:bg-white/5 rounded-[2.5rem] border border-dashed border-gray-200 dark:border-white/10">
+                              <ClipboardList className="w-12 h-12 text-gray-300 dark:text-white/5 mx-auto" />
+                              <p className="text-xs font-bold text-gray-400 dark:text-white/30 uppercase tracking-[0.2em] px-8">No hay datos de referencia cargados</p>
+                            </div>
+                          ) : (
+                            Object.entries(excelComparison).map(([product, target]) => {
+                               const programmed = totalsByProduct[product] || 0;
+                               const diff = programmed - target;
+                               return (
+                                <div key={product} className={`group/comp relative overflow-hidden p-8 rounded-[2.5rem] border transition-all duration-700 hover:shadow-2xl hover:shadow-blue-500/5 ${
+                                  diff === 0 
+                                    ? 'bg-gradient-to-br from-teal-500/10 to-teal-500/[0.02] border-teal-500/30' 
+                                    : 'bg-[#1a1c23]/90 border-white/5 hover:border-white/10'
+                                }`}>
+                                  {/* DECORATIVE BLOOM */}
+                                  <div className={`absolute -top-10 -right-10 w-40 h-40 blur-[80px] opacity-10 transition-opacity duration-700 group-hover/comp:opacity-20 ${
+                                    diff === 0 ? 'bg-teal-400' : diff > 0 ? 'bg-blue-400' : 'bg-red-400'
+                                  }`}></div>
+
+                                  <div className="relative z-10 flex flex-col gap-8">
+                                    <div className="flex justify-between items-start">
+                                      <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-blue-500/50 uppercase tracking-[0.3em] leading-none">CÓDIGO</p>
+                                        <div className="flex items-center gap-4">
+                                          <p className="text-3xl font-black text-white tracking-tighter leading-none uppercase">{product}</p>
+                                          {diff === 0 && <div className="p-1 bg-teal-500 rounded-full"><Check className="w-4 h-4 text-white" /></div>}
+                                        </div>
+                                      </div>
+                                      
+                                      <div className={`px-5 py-2 rounded-2xl text-base font-black border-2 transition-transform group-hover/comp:scale-105 ${
+                                        diff === 0 ? 'bg-teal-500/10 border-teal-500 text-teal-400' :
+                                        diff > 0 ? 'bg-blue-500/10 border-blue-500 text-blue-400' :
+                                        'bg-red-500 border-red-500 text-white shadow-[0_10px_30px_rgba(239,68,68,0.4)]'
+                                      }`}>
+                                        {diff === 0 ? 'LISTO' : (diff > 0 ? '+' : '') + diff}
+                                      </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-px bg-white/10 rounded-[2rem] overflow-hidden border border-white/10">
+                                      <div className="bg-white/[0.03] p-6 transition-colors group-hover/comp:bg-white/[0.06]">
+                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">PLAN</span>
+                                        <span className="text-3xl font-black text-white leading-none tracking-tight">{target}</span>
+                                      </div>
+                                      <div className={`p-6 transition-all ${
+                                        diff === 0 
+                                          ? 'bg-teal-500/10' 
+                                          : 'bg-white/[0.03]'
+                                      }`}>
+                                        <span className={`text-[10px] font-black uppercase tracking-widest block mb-2 ${
+                                          diff === 0 ? 'text-teal-400' : 'text-blue-400'
+                                        }`}>CARGADO</span>
+                                        <span className="text-3xl font-black text-white leading-none tracking-tight">{programmed}</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                      <div className="flex justify-between items-end px-1">
+                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Estado de Carga</span>
+                                        <span className={`text-sm font-black ${diff === 0 ? 'text-teal-400' : 'text-white/40'}`}>
+                                          {Math.round((programmed / target) * 100)}%
+                                        </span>
+                                      </div>
+                                      <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden p-[3px] border border-white/5">
+                                        <div 
+                                          className={`h-full rounded-full transition-all duration-1000 ease-in-out ${
+                                            diff === 0 ? 'bg-teal-500 shadow-[0_0_20px_rgba(20,184,166,0.6)]' : 
+                                            diff > 0 ? 'bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.4)]' : 
+                                            'bg-gradient-to-r from-red-600 to-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]'
+                                          }`}
+                                          style={{ width: `${Math.min(100, (programmed / target) * 100)}%` }}
+                                        ></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-8 bg-gray-50 dark:bg-black/20 border-t dark:border-white/10">
+                        <div className="flex justify-between items-center mb-6">
+                          <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">Balance General Turno</p>
+                          <span className="px-3 py-1 bg-blue-500 text-[10px] font-black text-white rounded-full uppercase tracking-widest">Sincronizado</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-5 bg-white dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/10">
+                            <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Programado</p>
+                            <p className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">
+                              {Object.values(totalsByProduct).reduce((a, b) => a + b, 0)}
+                            </p>
+                          </div>
+                          <div className="p-5 bg-white dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/10">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Ref. Excel</p>
+                            <p className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">
+                              {Object.values(excelComparison).reduce((a, b) => a + b, 0)}
+                            </p>
+                          </div>
+                        </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* OVERLAY BACKGROUND WHEN PANEL IS OPEN (Total transparency and minimal clicks) */}
+                {showExcelPanel && (
+                  <div 
+                    className="fixed inset-0 bg-black/5 z-[90] transition-opacity duration-500"
+                    onClick={() => setShowExcelPanel(false)}
+                  />
+                )}
+              </div>
+            );
+          }
+
           let filteredRows = visibleProgramming;
           if (selectedSector === 'Picadillo') {
             filteredRows = isPicadilloMP 

@@ -164,6 +164,7 @@ export interface Programming {
   product: string;
   shift_type?: ShiftType;
   planned_kg: number;
+  machine?: string;
   created_at: string;
 }
 
@@ -175,6 +176,7 @@ export interface Production {
   shift_type: ShiftType;
   planned: number;
   produced: number;
+  machine?: string;
   created_at: string;
   updated_at: string;
 }
@@ -184,11 +186,12 @@ export interface History {
   date: string;
   sector: Sector;
   product: string;
+  shift_type: string;
   planned: number;
   produced: number;
   difference: number;
   status: Status;
-  shift_type: string;
+  machine?: string;
   created_at: string;
 }
 
