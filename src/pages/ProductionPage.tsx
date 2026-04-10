@@ -277,13 +277,13 @@ export function ProductionPage() {
       )}
 
       {/* HEADER SECTION */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div>
+      <div className="flex flex-col lg:flex-row justify-between items-center lg:items-center gap-4">
+        <div className="text-center lg:text-left w-full lg:w-auto">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300 tracking-tight">Producción Operativa</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300">Control de planta segmentado por turnos</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center lg:justify-end gap-3 w-full lg:w-auto">
           <div 
             className="relative min-w-[130px] px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-2 text-sm sm:text-base transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-500/50 group shadow-sm font-bold"
             onClick={() => dateInputRef.current?.showPicker()}
@@ -345,7 +345,7 @@ export function ProductionPage() {
       </div>
 
       {/* KPI CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Plan Turno', value: `${formatNumber(totalPlanned, 0)} ${SECTOR_UNITS[selectedSector]}`, color: 'text-gray-900 dark:text-white' },
           { label: 'Producido', value: `${formatNumber(totalProduced, 0)} ${SECTOR_UNITS[selectedSector].toLowerCase()}`, color: 'text-teal-600 dark:text-teal-400 font-black' },
@@ -378,29 +378,29 @@ export function ProductionPage() {
           </span>
         </div>
 
-        <div className="lg:col-span-1 flex items-center justify-center gap-3">
+        <div className="lg:col-span-1 grid grid-cols-2 lg:flex lg:flex-row items-center justify-center gap-3 w-full lg:w-auto">
           <button
             onClick={handleStartDayClick}
             disabled={saving || dayStatus === 'closed' || dayStatus === 'started'}
-            className="flex items-center space-x-2 px-6 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition font-bold disabled:opacity-50 whitespace-nowrap shadow-lg shadow-teal-600/20 text-xs uppercase tracking-widest"
+            className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition font-bold disabled:opacity-50 whitespace-nowrap shadow-lg shadow-teal-600/20 text-[10px] uppercase tracking-widest col-span-1"
           >
-            <PlayCircle className="w-5 h-5 flex-shrink-0" />
+            <PlayCircle className="w-4 h-4 flex-shrink-0" />
             <span>Iniciar {selectedShift}</span>
           </button>
           <button
             onClick={saveProduction}
             disabled={saving || production.length === 0 || dayStatus === 'closed'}
-            className="flex items-center space-x-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-bold disabled:opacity-50 whitespace-nowrap shadow-lg shadow-blue-600/20 text-xs uppercase tracking-widest"
+            className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-bold disabled:opacity-50 whitespace-nowrap shadow-lg shadow-blue-600/20 text-[10px] uppercase tracking-widest col-span-1"
           >
-            <Save className="w-5 h-5 flex-shrink-0" />
+            <Save className="w-4 h-4 flex-shrink-0" />
             <span>Guardar Avance</span>
           </button>
           <button
             onClick={handleCloseDayClick}
             disabled={saving || dayStatus !== 'started'}
-            className="flex items-center space-x-2 px-6 py-2.5 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition font-bold disabled:opacity-50 whitespace-nowrap shadow-lg shadow-orange-600/20 text-xs uppercase tracking-widest"
+            className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition font-bold disabled:opacity-50 whitespace-nowrap shadow-lg shadow-orange-600/20 text-[10px] uppercase tracking-widest col-span-2 lg:col-span-1"
           >
-            <StopCircle className="w-5 h-5 flex-shrink-0" />
+            <StopCircle className="w-4 h-4 flex-shrink-0" />
             <span>Cerrar Turno</span>
           </button>
         </div>
