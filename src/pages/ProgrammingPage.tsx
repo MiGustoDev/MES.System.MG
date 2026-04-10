@@ -276,28 +276,34 @@ export function ProgrammingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
-        <div>
+      <div className="flex flex-col lg:flex-row justify-between items-start gap-4 w-full">
+        <div className="w-full lg:flex-1 text-center lg:text-left">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300 tracking-tight">Programación Diaria</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300">Gestiona el plan de producción global</p>
           
-          <div className="flex flex-col gap-3 mt-6 w-full sm:w-fit">
+          <div className="flex flex-row justify-between gap-3 mt-6 w-full">
              <button
                 onClick={copyFromPreviousDay}
                 disabled={loading}
-                className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-purple-600/20 w-full"
+                className="flex-1 flex items-center justify-center gap-2 py-3 px-1 sm:px-4 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all font-bold shadow-lg shadow-purple-600/20"
               >
-                <Copy className="w-4 h-4" />
-                <span>Copiar Día Anterior</span>
+                <Copy className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="text-[9px] sm:text-xs uppercase tracking-widest text-left leading-tight">
+                  <span className="block">Copiar Día</span>
+                  <span className="block">Anterior</span>
+                </span>
               </button>
               
               <button
                 onClick={saveProgramming}
                 disabled={saving || programming.length === 0}
-                className="flex items-center justify-center space-x-2 px-8 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-600/30 text-xs uppercase tracking-widest w-full"
+                className="flex-1 flex items-center justify-center gap-2 py-3 px-1 sm:px-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-600/30"
               >
-                <Save className="w-5 h-5 flex-shrink-0" />
-                <span>Guardar Programación</span>
+                <Save className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="text-[9px] sm:text-xs uppercase tracking-widest text-left leading-tight">
+                  <span className="block">Guardar</span>
+                  <span className="block">Programación</span>
+                </span>
               </button>
           </div>
         </div>
