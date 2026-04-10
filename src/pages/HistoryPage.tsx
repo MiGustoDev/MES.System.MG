@@ -81,14 +81,14 @@ export function HistoryPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div>
+      <div className="flex flex-col lg:flex-row justify-between items-center lg:items-center gap-4">
+        <div className="text-center lg:text-left w-full lg:w-auto">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Historial de Producción</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1 font-medium">Análisis detallado de la planta por jornada</p>
         </div>
         
         <div 
-          className="relative w-full sm:w-auto min-w-[160px] px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-3 transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-500/50 group text-sm sm:text-base pr-8 shadow-sm"
+          className="relative w-fit mx-auto lg:w-auto min-w-[200px] px-6 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-center lg:justify-between gap-3 transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-500/50 group text-sm sm:text-base pr-8 shadow-sm"
           onClick={() => dateInputRef.current?.showPicker()}
         >
           <input
@@ -108,7 +108,7 @@ export function HistoryPage() {
 
       <div className="flex flex-col items-center gap-4">
         <div className="flex flex-wrap gap-2 justify-center">
-          {SHIFT_TYPES.map((shift) => (
+          {SHIFT_TYPES.map((shift, index) => (
             <button
               key={shift}
               onClick={() => setSelectedShift(shift as ShiftType)}
@@ -116,7 +116,7 @@ export function HistoryPage() {
                 selectedShift === shift
                   ? 'bg-amber-600 text-white shadow-[0_0_15px_rgba(217,119,6,0.3)]'
                   : 'bg-white dark:bg-[#1a1c23] text-gray-500 border border-gray-200 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5'
-              }`}
+              } ${index === 2 ? 'col-span-2 md:col-span-1' : ''}`}
             >
               Turno {shift}
               {availableShifts.includes(shift) && selectedShift !== shift && (
@@ -130,7 +130,7 @@ export function HistoryPage() {
       <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-100 dark:border-white/5 overflow-hidden transition-all duration-300">
         {/* NAVEGACIÓN DE SECTORES - SIEMPRE VISIBLE */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-transparent">
-          {SECTORS.map((s) => {
+          {SECTORS.map((s, index) => {
             const Icon = SECTOR_ICONS[s];
             return (
               <button
@@ -140,7 +140,7 @@ export function HistoryPage() {
                   selectedSector === s
                     ? 'bg-blue-600/5 dark:bg-blue-600/10'
                     : 'hover:bg-gray-100/50 dark:hover:bg-white/5'
-                }`}
+                } ${index === 4 ? 'col-span-2 sm:col-span-1' : ''}`}
               >
                 <div className={`p-2 rounded-xl transition-all duration-300 ${
                   selectedSector === s
