@@ -479,7 +479,7 @@ export function ProgrammingPage() {
                                   <div className="w-32 relative group/input">
                                     <input
                                       type="number"
-                                      value={Number.isFinite(row.planned_kg) ? row.planned_kg : ''}
+                                      value={row.planned_kg === 0 ? '' : row.planned_kg}
                                       onChange={(e) => updateRow(row.id, 'planned_kg', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                                       placeholder="0"
                                       className="w-full pl-9 pr-3 py-2 text-xl font-black text-right bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 rounded-xl text-gray-900 dark:text-white transition-all outline-none placeholder:opacity-10 shadow-sm"
@@ -736,7 +736,7 @@ export function ProgrammingPage() {
                       <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
                         <td className="px-8 py-4"><span className="font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors uppercase tracking-tight">{row.product}</span></td>
                         <td className="px-8 py-4 text-center"><span className="inline-flex px-3 py-1 rounded-full text-[10px] font-black bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-white/10 uppercase tracking-widest">{row.shift_type ?? 'Mañana'}</span></td>
-                        <td className="px-8 py-4"><input type="number" value={Number.isFinite(row.planned_kg) ? row.planned_kg : ''} onChange={(e) => updateRow(row.id, 'planned_kg', e.target.value === '' ? 0 : parseFloat(e.target.value))} min="0" step="0.1" className="w-full px-4 py-2 text-lg font-black text-right bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-inner" /></td>
+                        <td className="px-8 py-4"><input type="number" value={row.planned_kg === 0 ? '' : row.planned_kg} onChange={(e) => updateRow(row.id, 'planned_kg', e.target.value === '' ? 0 : parseFloat(e.target.value))} min="0" step="0.1" className="w-full px-4 py-2 text-lg font-black text-right bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-inner" /></td>
                       </tr>
                     ))}
                   </tbody>
