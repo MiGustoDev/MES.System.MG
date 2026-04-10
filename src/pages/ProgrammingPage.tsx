@@ -276,19 +276,19 @@ export function ProgrammingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row justify-between items-start gap-4 w-full">
-        <div className="w-full lg:flex-1 text-center lg:text-left">
+      <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
+        <div className="w-full lg:w-auto text-center lg:text-left">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300 tracking-tight">Programación Diaria</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300">Gestiona el plan de producción global</p>
           
-          <div className="flex flex-row justify-between gap-3 mt-6 w-full">
+          <div className="flex flex-row justify-between gap-3 mt-6 w-full lg:hidden">
              <button
                 onClick={copyFromPreviousDay}
                 disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 py-3 px-1 sm:px-4 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all font-bold shadow-lg shadow-purple-600/20"
+                className="flex-1 flex items-center justify-center gap-2 py-3 px-1 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all font-bold shadow-lg shadow-purple-600/20"
               >
-                <Copy className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                <span className="text-[9px] sm:text-xs uppercase tracking-widest text-left leading-tight">
+                <Copy className="w-4 h-4 flex-shrink-0" />
+                <span className="text-[9px] uppercase tracking-widest text-left leading-tight">
                   <span className="block">Copiar Día</span>
                   <span className="block">Anterior</span>
                 </span>
@@ -297,13 +297,33 @@ export function ProgrammingPage() {
               <button
                 onClick={saveProgramming}
                 disabled={saving || programming.length === 0}
-                className="flex-1 flex items-center justify-center gap-2 py-3 px-1 sm:px-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-600/30"
+                className="flex-1 flex items-center justify-center gap-2 py-3 px-1 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-600/30"
               >
-                <Save className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                <span className="text-[9px] sm:text-xs uppercase tracking-widest text-left leading-tight">
+                <Save className="w-4 h-4 flex-shrink-0" />
+                <span className="text-[9px] uppercase tracking-widest text-left leading-tight">
                   <span className="block">Guardar</span>
                   <span className="block">Programación</span>
                 </span>
+              </button>
+          </div>
+
+          <div className="hidden lg:flex flex-col gap-3 mt-6 w-full sm:w-fit">
+             <button
+                onClick={copyFromPreviousDay}
+                disabled={loading}
+                className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-purple-600/20 w-full"
+              >
+                <Copy className="w-4 h-4" />
+                <span>Copiar Día Anterior</span>
+              </button>
+              
+              <button
+                onClick={saveProgramming}
+                disabled={saving || programming.length === 0}
+                className="flex items-center justify-center space-x-2 px-8 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-600/30 text-xs uppercase tracking-widest w-full"
+              >
+                <Save className="w-5 h-5 flex-shrink-0" />
+                <span>Guardar Programación</span>
               </button>
           </div>
         </div>
@@ -735,14 +755,14 @@ export function ProgrammingPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-black/10 border-b border-gray-200 dark:border-white/10">
-                    <tr><th className="px-8 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-widest">Producto</th><th className="px-8 py-4 text-center text-[11px] font-black text-gray-400 uppercase tracking-widest w-40">Turno</th><th className="px-8 py-4 text-right text-[11px] font-black text-gray-400 uppercase tracking-widest w-48">Planificado</th></tr>
+                    <tr><th className="px-3 sm:px-8 py-4 text-left text-[9px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest w-[40%] sm:w-1/3">Producto</th><th className="px-1 sm:px-8 py-4 text-center text-[9px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest w-[20%] sm:w-40">Turno</th><th className="px-3 sm:px-8 py-4 text-right text-[9px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest w-[40%] sm:w-48">Planificado</th></tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                     {filteredRows.map((row) => (
                       <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
-                        <td className="px-8 py-4"><span className="font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors uppercase tracking-tight">{row.product}</span></td>
-                        <td className="px-8 py-4 text-center"><span className="inline-flex px-3 py-1 rounded-full text-[10px] font-black bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-white/10 uppercase tracking-widest">{row.shift_type ?? 'Mañana'}</span></td>
-                        <td className="px-8 py-4"><input type="number" value={row.planned_kg === 0 ? '' : row.planned_kg} onChange={(e) => updateRow(row.id, 'planned_kg', e.target.value === '' ? 0 : parseFloat(e.target.value))} min="0" step="0.1" className="w-full px-4 py-2 text-lg font-black text-right bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-inner" /></td>
+                        <td className="px-3 sm:px-8 py-3 sm:py-4"><span className="text-[11px] sm:text-base font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors uppercase tracking-tight">{row.product}</span></td>
+                        <td className="px-1 sm:px-8 py-3 sm:py-4 text-center"><span className="inline-flex px-2 sm:px-3 py-1 rounded-full text-[8px] sm:text-[10px] font-black bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-white/10 uppercase tracking-widest">{row.shift_type ?? 'Mañana'}</span></td>
+                        <td className="px-3 sm:px-8 py-3 sm:py-4 text-right"><input type="number" value={row.planned_kg === 0 ? '' : row.planned_kg} onChange={(e) => updateRow(row.id, 'planned_kg', e.target.value === '' ? 0 : parseFloat(e.target.value))} min="0" step="0.1" placeholder="0" className="w-20 sm:w-28 inline-block px-2 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-lg font-black text-right bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-inner" /></td>
                       </tr>
                     ))}
                   </tbody>
