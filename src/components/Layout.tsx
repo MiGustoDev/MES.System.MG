@@ -28,7 +28,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f1115] transition-colors duration-300">
-      <nav className="bg-white dark:bg-[#1a1c23] shadow-sm border-b border-gray-200 dark:border-white/5 transition-colors duration-300">
+      <nav className="bg-white dark:bg-[#1a1c23] shadow-sm border-b border-gray-200 dark:border-white/5 transition-colors duration-300 relative z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
@@ -64,41 +64,54 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300"
+              className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300 relative w-10 h-10 flex items-center justify-center overflow-hidden"
             >
-              {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              <Menu className={`w-6 h-6 absolute transition-all duration-300 ease-in-out ${menuOpen ? 'scale-0 opacity-0 rotate-90' : 'scale-100 opacity-100 rotate-0'}`} />
+              <X className={`w-6 h-6 absolute transition-all duration-300 ease-in-out ${menuOpen ? 'scale-100 opacity-100 rotate-0' : 'scale-0 opacity-0 -rotate-90'}`} />
             </button>
           </div>
         </div>
 
-        {menuOpen && (
-          <div className="md:hidden border-t border-gray-200 dark:border-white/5 bg-white dark:bg-[#1a1c23]">
-            <div className="px-2 pt-2 pb-3 space-y-1">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentPage === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      onNavigate(item.id);
-                      setMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                      isActive
-                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </nav>
+
+      {/* Backdrop para oscurecer el fondo */}
+      <div 
+        className={`md:hidden fixed inset-0 top-16 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300 ${
+          menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setMenuOpen(false)}
+      />
+
+      {/* Cajón lateral (Drawer) desde la derecha */}
+      <div 
+        className={`md:hidden fixed top-16 right-0 bottom-0 w-[280px] bg-white dark:bg-[#1a1c23] shadow-2xl z-50 transform transition-transform duration-300 ease-out border-l border-gray-200 dark:border-white/5 ${
+          menuOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="p-4 space-y-2 overflow-y-auto h-full">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPage === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  onNavigate(item.id);
+                  setMenuOpen(false);
+                }}
+                className={`w-full flex items-center space-x-3 px-4 py-3.5 rounded-xl font-bold transition-all ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'
+                }`}
+              >
+                <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
