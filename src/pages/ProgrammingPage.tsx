@@ -18,6 +18,13 @@ export function ProgrammingPage() {
   const [excelPasteData, setExcelPasteData] = useState<string>('');
   const [excelComparison, setExcelComparison] = useState<Record<string, number>>({});
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 40);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     if (selectedSector === 'Armado') {
@@ -275,7 +282,7 @@ export function ProgrammingPage() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${selectedSector === 'Armado' ? '-mx-2 md:mx-0 pr-[85px] md:pr-0' : ''}`}>
       <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
         <div className="w-full lg:w-auto text-center lg:text-left">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300 tracking-tight">Programación Diaria</h1>
@@ -365,8 +372,8 @@ export function ProgrammingPage() {
       )}
 
       <div className="flex flex-col items-center gap-6">
-        <div className="flex flex-wrap gap-2 justify-center">
-          {SHIFT_TYPES.map((shift) => (
+        <div className={`${selectedSector === 'Armado' ? 'grid grid-cols-2' : 'flex flex-wrap'} md:flex md:flex-wrap gap-2 justify-center w-full max-w-[400px] md:max-w-none px-4 md:px-0`}>
+          {SHIFT_TYPES.map((shift, index) => (
             <button
               key={shift}
               onClick={() => setSelectedShift(shift)}
@@ -374,7 +381,7 @@ export function ProgrammingPage() {
                 selectedShift === shift
                   ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
                   : 'bg-white dark:bg-[#1a1c23] text-gray-500 border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
-              }`}
+              } ${selectedSector === 'Armado' && index === 2 ? 'col-span-2 md:col-span-1' : ''}`}
             >
               Turno {shift}
             </button>
@@ -437,17 +444,17 @@ export function ProgrammingPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-8 px-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 pb-8 px-2">
                     {machineNames.map((machineName: string) => {
                       const machineRows = sectorProgramming.filter(p => p.machine === machineName);
                       const totalBnd = machineRows.reduce((sum, r) => sum + (Number.isFinite(r.planned_kg) ? r.planned_kg : 0), 0);
 
                       return (
                         <div key={machineName} className="group/card">
-                          <div className="h-full bg-white dark:bg-[#1a1c23] rounded-[2.5rem] shadow-2xl border border-gray-200 dark:border-white/5 overflow-hidden flex flex-col transition-all duration-500 hover:border-blue-500/40 relative">
+                          <div className="h-full bg-white dark:bg-[#1a1c23] rounded-3xl md:rounded-[2.5rem] shadow-2xl border border-gray-200 dark:border-white/5 overflow-hidden flex flex-col transition-all duration-500 hover:border-blue-500/40 relative">
                             <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/5 blur-[80px] rounded-full pointer-events-none group-hover/card:bg-blue-500/10 transition-colors duration-500"></div>
                             
-                            <div className="px-8 py-6 bg-gray-50/50 dark:bg-black/20 border-b dark:border-white/10 flex justify-between items-center relative z-10">
+                            <div className="px-4 md:px-8 py-4 md:py-6 bg-gray-50/50 dark:bg-black/20 border-b dark:border-white/10 flex justify-between items-center relative z-10">
                               <div className="flex items-center gap-3 flex-1">
                                 <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] flex-shrink-0"></div>
                                 
@@ -485,7 +492,7 @@ export function ProgrammingPage() {
                               </button>
                             </div>
                             
-                            <div className="p-6 space-y-4 flex-1 overflow-y-auto max-h-[600px] scrollbar-none relative z-10">
+                            <div className="p-4 md:p-6 space-y-4 flex-1 overflow-y-auto max-h-[600px] scrollbar-none relative z-10">
                               {machineRows.map((row) => (
                                 <div key={row.id} className="relative bg-gray-50/50 dark:bg-black/20 p-2 rounded-2xl border border-gray-100 dark:border-white/5 transition-all duration-300 hover:border-blue-500/30 group/row flex items-center gap-2">
                                   <div className="flex-[1.5] min-w-0 bg-white dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5 px-3 py-2 transition-all group-hover/row:border-blue-500/20 shadow-sm">
@@ -535,7 +542,7 @@ export function ProgrammingPage() {
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">Cargar Producto</span>
                               </button>
                             </div>
-                            <div className="px-8 py-8 bg-gray-50/80 dark:bg-black/40 border-t dark:border-white/10 flex justify-between items-center relative z-10">
+                            <div className="px-5 py-6 md:px-8 md:py-8 bg-gray-50/80 dark:bg-black/40 border-t dark:border-white/10 flex justify-between items-center relative z-10">
                               <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total Máquina</p>
                                 <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{totalBnd} <span className="text-xs text-blue-500 uppercase">bandejas</span></p>
@@ -549,14 +556,14 @@ export function ProgrammingPage() {
                   </div>
                 </div>
 
-                <div className={`fixed inset-y-0 right-0 z-[100] transform transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${showExcelPanel ? 'translate-x-0 w-full md:w-[450px]' : 'translate-x-[calc(100%-150px)] w-[150px]'}`}>
+                <div className={`fixed ${isScrolled ? 'top-0' : 'top-[64px]'} md:top-0 bottom-0 right-0 z-[100] transform transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${showExcelPanel ? 'translate-x-0 w-full md:w-[450px]' : 'translate-x-[calc(100%-85px)] md:translate-x-[calc(100%-150px)] w-[85px] md:w-[150px]'}`}>
                   {!showExcelPanel && (
                     <button onClick={() => setShowExcelPanel(true)} className="absolute inset-y-0 left-0 w-full flex flex-col bg-blue-600 dark:bg-[#1a1c23] backdrop-blur-md transition-colors cursor-pointer group/peek border-l border-white/10 shadow-[-20px_0_60px_rgba(0,0,0,0.5)]">
-                      <div className="p-5 bg-blue-700/50 w-full flex items-center justify-between border-b border-white/10">
-                        <ClipboardList className="w-6 h-6 text-white" />
-                        <span className="text-xs font-black text-white uppercase tracking-widest">Objetivo Diario</span>
+                      <div className="p-3 md:p-5 bg-blue-700/50 w-full flex items-center justify-center md:justify-between border-b border-white/10">
+                        <ClipboardList className="w-6 h-6 text-white flex-shrink-0" />
+                        <span className="hidden md:block text-xs font-black text-white uppercase tracking-widest">Objetivo Diario</span>
                       </div>
-                      <div className="flex-1 w-full overflow-y-auto overflow-x-hidden px-4 py-8 space-y-5 scrollbar-none text-left">
+                      <div className="flex-1 w-full overflow-y-auto overflow-x-hidden px-1 md:px-4 pt-1 pb-8 md:py-8 space-y-3 md:space-y-5 scrollbar-none text-left">
                         {Object.entries(excelComparison).map(([product, target]) => {
                           const programmed = totalsByProduct[product] || 0;
                           const diff = programmed - target;
@@ -590,38 +597,38 @@ export function ProgrammingPage() {
                           }
 
                           return (
-                            <div key={product} className={`w-full rounded-[1.5rem] p-5 border transition-all duration-500 relative ${cardClass} mt-4`}>
-                              <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex flex-wrap gap-1 justify-center w-full px-2">
+                            <div key={product} className={`w-full rounded-xl md:rounded-[1.5rem] p-2 md:p-5 border transition-all duration-500 relative ${cardClass} mt-2 md:mt-4 shadow-lg shadow-black/20`}>
+                              <div className="flex flex-wrap gap-1 justify-center w-full px-2 mb-2">
                                 {assignedMachines.length > 0 ? (
                                   assignedMachines.map(m => <span key={m} className={`text-[7px] font-black text-white px-2 py-0.5 rounded-md uppercase shadow-lg border ${badgeClass}`}>{m}</span>)
                                 ) : (
                                   <span className={`text-[7px] font-black text-white px-2 py-0.5 rounded-md uppercase border ${badgeClass}`}>Sin asignar</span>
                                 )}
                               </div>
-                              <div className="flex justify-between items-start mb-3 pt-1">
-                                <div className="flex flex-col gap-1">
-                                  <div className="flex items-center gap-3">
-                                    <span className={`text-sm font-black uppercase tracking-tight truncate pr-2 max-w-[80px] ${isOK ? 'text-emerald-400' : 'text-white'}`}>{product}</span>
-                                    {isOK && <Check className="w-5 h-5 text-emerald-400" />}
+                                <div className="flex justify-between items-start mb-2 md:mb-3 pt-1">
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-1 md:gap-3">
+                                      <span className={`text-[11px] md:text-sm font-black uppercase tracking-tight truncate max-w-[40px] md:max-w-[80px] ${isOK ? 'text-emerald-400' : 'text-white'}`}>{product}</span>
+                                      {isOK && <Check className="w-3 md:w-5 h-3 md:h-5 text-emerald-400 shrink-0" />}
+                                    </div>
                                   </div>
+                                  <div className={`px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg text-[9px] md:text-[10px] font-black shadow-lg text-white ${diffClass}`}>{isOK ? 'OK' : (diff > 0 ? '+' : '') + diff}</div>
                                 </div>
-                                <div className={`px-2 py-1 rounded-lg text-[10px] font-black shadow-lg text-white ${diffClass}`}>{isOK ? 'OK' : (diff > 0 ? '+' : '') + diff}</div>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <div className="flex flex-col"><span className="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none mb-1">PLAN</span><span className="text-sm font-black text-white leading-none">{target}</span></div>
-                                <div className="w-px h-6 bg-white/10"></div>
-                                <div className="flex flex-col"><span className={`text-[9px] font-black uppercase tracking-widest leading-none mb-1 ${isOK ? 'text-emerald-400' : 'text-blue-400'}`}>CARG.</span><span className="text-sm font-black text-white leading-none">{programmed}</span></div>
-                              </div>
+                               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                                 <div className="flex flex-col shrink-0"><span className="text-[8px] md:text-[9px] font-black text-white/40 uppercase tracking-widest leading-none mb-0.5 md:mb-1">PLAN</span><span className="text-[11px] md:text-sm font-black text-white leading-none">{target}</span></div>
+                                 <div className="hidden md:block w-px h-6 bg-white/10"></div>
+                                 <div className={`flex flex-col shrink-0 ${isOK ? 'text-emerald-400' : 'text-blue-400'}`}><span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest leading-none mb-0.5 md:mb-1">CARG.</span><span className="text-[11px] md:text-sm font-black text-white leading-none">{programmed}</span></div>
+                               </div>
                             </div>
                           );
                         })}
                       </div>
-                      <div className="p-6 bg-black/40 border-t border-white/20">
-                        <div className="flex flex-col gap-6">
-                          <div className="flex flex-col items-center text-center"><span className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Meta Total</span><span className="text-3xl font-black text-white tracking-tighter shadow-sm">{Object.values(excelComparison).reduce((a, b) => a + b, 0)}</span></div>
+                      <div className="p-3 md:p-6 bg-black/40 border-t border-white/20">
+                        <div className="flex flex-col gap-4 md:gap-6">
+                          <div className="flex flex-col items-center text-center"><span className="text-[9px] md:text-[11px] font-black text-white/40 uppercase tracking-[0.2em] mb-0.5 md:mb-1">Meta</span><span className="text-xl md:text-3xl font-black text-white tracking-tighter shadow-sm">{Object.values(excelComparison).reduce((a, b) => a + b, 0)}</span></div>
                           <div className="flex flex-col items-center text-center">
-                            <span className="text-[11px] font-black text-blue-400 uppercase tracking-[0.2em] mb-2">Diferencia</span>
-                            <div className={`w-full py-3 rounded-2xl text-2xl font-black shadow-2xl border-2 flex items-center justify-center ${
+                            <span className="text-[9px] md:text-[11px] font-black text-blue-400 uppercase tracking-[0.2em] mb-1 md:mb-2">Diff</span>
+                            <div className={`w-full py-1.5 md:py-3 rounded-xl md:rounded-2xl text-lg md:text-2xl font-black shadow-2xl border-2 flex items-center justify-center ${
                               (Object.values(totalsByProduct).reduce((a, b) => a + b, 0) - Object.values(excelComparison).reduce((a, b) => a + b, 0)) >= 0 
                               ? 'bg-teal-500 border-teal-300 text-white shadow-teal-500/10' : 'bg-red-500 border-red-400 text-white shadow-red-500/20'
                             }`}>
@@ -634,9 +641,14 @@ export function ProgrammingPage() {
                   )}
 
                   <div className={`h-full bg-white dark:bg-[#1a1c23] border-l border-gray-200 dark:border-white/10 flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.2)] ${!showExcelPanel ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                    <div className="px-8 py-7 bg-blue-600 flex items-center justify-between">
-                      <div className="flex items-center gap-4"><ClipboardList className="w-6 h-6 text-white" /><div><h4 className="text-base font-black text-white uppercase tracking-wider">Objetivo Diario</h4><p className="text-[10px] font-bold text-blue-100 uppercase opacity-70 tracking-widest">Referencia de Carga</p></div></div>
-                      <button onClick={() => setShowExcelPanel(false)} className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all hover:rotate-90"><Trash2 className="w-5 h-5 text-white rotate-45" /></button>
+                    <div className="px-4 md:px-8 py-3 md:py-5 bg-blue-600 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <button onClick={() => setShowExcelPanel(false)} className="md:cursor-default p-1 md:p-0 rounded-xl md:rounded-none hover:bg-white/20 md:hover:bg-transparent transition-all" title="Cerrar panel">
+                          <ClipboardList className="w-6 h-6 text-white" />
+                        </button>
+                        <div><h4 className="text-base font-black text-white uppercase tracking-wider">Objetivo Diario</h4><p className="text-[10px] font-bold text-blue-100 uppercase opacity-70 tracking-widest">Referencia de Carga</p></div>
+                      </div>
+                      <button onClick={() => { setExcelPasteData(''); setExcelComparison({}); }} className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all hover:rotate-90" title="Limpiar datos"><Trash2 className="w-5 h-5 text-white" /></button>
                     </div>
                     <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-none">
                       <div className="space-y-4">
@@ -725,11 +737,11 @@ export function ProgrammingPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="p-8 bg-gray-50 dark:bg-black/20 border-t dark:border-white/10">
-                        <div className="flex justify-between items-center mb-6"><p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">Balance General</p><span className="px-3 py-1 bg-blue-500 text-[10px] font-black text-white rounded-full uppercase tracking-widest">OK</span></div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="p-5 bg-white dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/10"><p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Programado</p><p className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{Object.values(totalsByProduct).reduce((a, b) => a + b, 0)}</p></div>
-                          <div className="p-5 bg-white dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/10"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Objetivo</p><p className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{Object.values(excelComparison).reduce((a, b) => a + b, 0)}</p></div>
+                    <div className="p-4 md:p-6 bg-gray-50 dark:bg-black/20 border-t dark:border-white/10">
+                        <div className="flex justify-between items-center mb-4"><p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">Balance General</p><span className="px-3 py-1 bg-blue-500 text-[10px] font-black text-white rounded-full uppercase tracking-widest">OK</span></div>
+                        <div className="grid grid-cols-2 gap-3 md:gap-4">
+                          <div className="p-3 md:p-4 bg-white dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10"><p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1.5">Programado</p><p className="text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{Object.values(totalsByProduct).reduce((a, b) => a + b, 0)}</p></div>
+                          <div className="p-3 md:p-4 bg-white dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Total Objetivo</p><p className="text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{Object.values(excelComparison).reduce((a, b) => a + b, 0)}</p></div>
                         </div>
                     </div>
                   </div>

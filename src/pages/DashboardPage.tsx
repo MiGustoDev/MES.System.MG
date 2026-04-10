@@ -448,7 +448,7 @@ export function DashboardPage() {
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 italic">Balance de cumplimiento por sector</p>
           <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
                 <PolarGrid stroke="#374151" />
                 <PolarAngleAxis dataKey="sector" tick={{ fill: '#9ca3af', fontSize: 10 }} />
@@ -485,7 +485,7 @@ export function DashboardPage() {
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 italic">Top productos con mayor desviación negativa</p>
           <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <ComposedChart data={paretoData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
                 <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 10 }} />
@@ -518,7 +518,7 @@ export function DashboardPage() {
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 italic">Distribución de eficiencia por producto en Armado</p>
           <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
                 <XAxis type="number" dataKey="x" name="Cumplimiento" unit="%" domain={[0, 150]} tick={{ fill: '#9ca3af' }} />
@@ -558,7 +558,7 @@ export function DashboardPage() {
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 italic">Volumen histórico por fecha</p>
           <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={trendData}>
                 <defs>
                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
