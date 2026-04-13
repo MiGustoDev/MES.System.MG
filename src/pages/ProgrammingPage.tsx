@@ -260,6 +260,52 @@ export function ProgrammingPage() {
     }
   };
 
+  const condenseMachines = (machines: string[]) => {
+    if (machines.length === 0) return 'Sin asignar';
+    if (machines.length === 1) return machines[0];
+    
+    // Agrupar por prefijo (ej: "MAQUINA 1", "MAQUINA 2" -> "MAQUINA 1, 2")
+    const groups: Record<string, string[]> = {};
+    machines.forEach(m => {
+      const parts = m.split(' ');
+      if (parts.length > 1) {
+        const prefix = parts.slice(0, -1).join(' ');
+        const suffix = parts[parts.length - 1];
+        if (!groups[prefix]) groups[prefix] = [];
+        groups[prefix].push(suffix);
+      } else {
+        if (!groups[m]) groups[m] = [''];
+      }
+    });
+
+    return Object.entries(groups).map(([prefix, suffixes]) => {
+      if (suffixes.length === 1 && suffixes[0] === '') return prefix;
+      return `${prefix} ${suffixes.join(', ')}`;
+    }).join(' | ');
+  };
+
+  const getShiftBadge = (shift: string) => {
+    switch (shift) {
+      case 'Mañana': return 'M';
+      case 'Tarde': return 'T';
+      case 'Noche': return 'N';
+      default: return 'M';
+    }
+  };
+
+  const condenseByShift = (rows: Programming[]) => {
+    const byShift: Record<string, string[]> = {};
+    rows.forEach(p => {
+      const shift = p.shift_type ?? 'Mañana';
+      if (!byShift[shift]) byShift[shift] = [];
+      if (!byShift[shift].includes(p.machine!)) byShift[shift].push(p.machine!);
+    });
+
+    return Object.entries(byShift).map(([shift, machines]) => {
+      return `${getShiftBadge(shift)}: ${condenseMachines(machines)}`;
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -274,9 +320,14 @@ export function ProgrammingPage() {
       (row.shift_type ?? 'Mañana') === selectedShift
   );
 
-  const sectorProgramming = programming.filter(p => p.sector === 'Armado' && (p.shift_type ?? 'Mañana') === selectedShift);
+  // Filtros de programación para el sector Armado
+  // dailyArmadoProgramming se usa para el HUD (Objetivo Diario compartido entre todos los turnos)
+  const dailyArmadoProgramming = programming.filter(p => p.sector === 'Armado');
+  
+  // currentShiftArmado se usa para renderizar las tarjetas de máquinas del turno seleccionado
+  const currentShiftArmado = dailyArmadoProgramming.filter(p => (p.shift_type ?? 'Mañana') === selectedShift);
 
-  const totalsByProduct = sectorProgramming.reduce((acc, p) => {
+  const totalsByProduct = dailyArmadoProgramming.reduce((acc, p) => {
     acc[p.product] = (acc[p.product] || 0) + (p.planned_kg || 0);
     return acc;
   }, {} as Record<string, number>);
@@ -446,7 +497,7 @@ export function ProgrammingPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 pb-8 px-2">
                     {machineNames.map((machineName: string) => {
-                      const machineRows = sectorProgramming.filter(p => p.machine === machineName);
+                      const machineRows = currentShiftArmado.filter(p => p.machine === machineName);
                       const totalBnd = machineRows.reduce((sum, r) => sum + (Number.isFinite(r.planned_kg) ? r.planned_kg : 0), 0);
 
                       return (
@@ -567,9 +618,12 @@ export function ProgrammingPage() {
                         {Object.entries(excelComparison).map(([product, target]) => {
                           const programmed = totalsByProduct[product] || 0;
                           const diff = programmed - target;
-                          const assignedMachines = sectorProgramming.filter(p => p.product === product && p.planned_kg > 0 && p.machine).map(p => p.machine!).filter((v, i, a) => a.indexOf(v) === i);
                           
-                          const isUnassigned = assignedMachines.length === 0;
+                          // Obtener filas de programación para este producto
+                          const productRows = dailyArmadoProgramming
+                            .filter(p => p.product === product && p.planned_kg > 0 && p.machine);
+                          
+                          const isUnassigned = productRows.length === 0;
                           const isOK = diff === 0;
                           const isAhead = diff > 0;
                           const isDelayed = diff < 0 && !isUnassigned;
@@ -598,11 +652,15 @@ export function ProgrammingPage() {
 
                           return (
                             <div key={product} className={`w-full rounded-xl md:rounded-[1.5rem] p-2 md:p-5 border transition-all duration-500 relative ${cardClass} mt-2 md:mt-4 shadow-lg shadow-black/20`}>
-                              <div className="flex flex-wrap gap-1 justify-center w-full px-2 mb-2">
-                                {assignedMachines.length > 0 ? (
-                                  assignedMachines.map(m => <span key={m} className={`text-[7px] font-black text-white px-2 py-0.5 rounded-md uppercase shadow-lg border ${badgeClass}`}>{m}</span>)
+                              <div className="flex flex-col items-center justify-center w-full px-1 mb-2 gap-0.5">
+                                {isUnassigned ? (
+                                  <span className="text-[7px] font-black text-white/40 px-2 py-0.5 rounded-md uppercase border border-white/5 bg-white/5 tracking-widest text-center">Sin asignar</span>
                                 ) : (
-                                  <span className={`text-[7px] font-black text-white px-2 py-0.5 rounded-md uppercase border ${badgeClass}`}>Sin asignar</span>
+                                  condenseByShift(productRows).map((line, idx) => (
+                                    <span key={idx} className={`text-[7px] font-black text-white px-2 py-0.5 rounded-md uppercase shadow-lg border text-center whitespace-nowrap overflow-hidden w-full ${badgeClass}`}>
+                                      {line}
+                                    </span>
+                                  ))
                                 )}
                               </div>
                                 <div className="flex justify-between items-start mb-2 md:mb-3 pt-1">
@@ -664,9 +722,11 @@ export function ProgrammingPage() {
                             Object.entries(excelComparison).map(([product, target]) => {
                                const programmed = totalsByProduct[product] || 0;
                                const diff = programmed - target;
-                               const assignedMachines = sectorProgramming.filter(p => p.product === product && p.planned_kg > 0 && p.machine).map(p => p.machine!).filter((v, i, a) => a.indexOf(v) === i);
                                
-                               const isUnassigned = assignedMachines.length === 0;
+                               const productRows = dailyArmadoProgramming
+                                 .filter(p => p.product === product && p.planned_kg > 0 && p.machine);
+                               
+                               const isUnassigned = productRows.length === 0;
                                const isOK = diff === 0;
                                const isAhead = diff > 0;
                                const isDelayed = diff < 0 && !isUnassigned;
@@ -707,12 +767,18 @@ export function ProgrammingPage() {
                                           </div>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
-                                          {assignedMachines.length > 0 ? assignedMachines.map(m => (
-                                            <div key={m} className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/5 group-hover/comp:border-white/10 transition-all">
-                                              <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></div>
-                                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{m}</span>
+                                          {productRows.length > 0 ? (
+                                            <div className="flex flex-col gap-1.5">
+                                              {condenseByShift(productRows).map((line, idx) => (
+                                                <div key={idx} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-xl border border-white/5 group-hover/comp:border-white/10 transition-all">
+                                                  <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></div>
+                                                  <span className="text-[10px] font-black text-white/70 uppercase tracking-widest">
+                                                    {line}
+                                                  </span>
+                                                </div>
+                                              ))}
                                             </div>
-                                          )) : (
+                                          ) : (
                                             <div className="px-3 py-1 bg-red-500/10 rounded-lg border border-red-500/20"><span className="text-[9px] font-black text-red-500/60 uppercase tracking-widest">Sin asignar</span></div>
                                           )}
                                         </div>
