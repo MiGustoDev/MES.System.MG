@@ -15,20 +15,21 @@ function CountUpNumber({ end, duration = 1500, decimals = 0, suffix = '', prefix
 
   useEffect(() => {
     let startTime: number | null = null;
+    let animationFrameId: number;
     const startValue = 0;
 
     const animate = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
       const progress = Math.min((timestamp - startTime) / duration, 1);
-      // Easing function: easeOutExpo
       const easing = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
       setCount(easing * (end - startValue) + startValue);
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        animationFrameId = requestAnimationFrame(animate);
       }
     };
 
-    requestAnimationFrame(animate);
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
   }, [end, duration]);
 
   return (
@@ -50,7 +51,9 @@ function CircularProgress({ percentage, color = 'blue', size = 52, strokeWidth =
   
   useEffect(() => {
     let startTime: number | null = null;
+    let animationFrameId: number;
     const duration = 1500;
+    setProgress(0); // Reset to start drawing from 0
     
     const animate = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
@@ -58,11 +61,12 @@ function CircularProgress({ percentage, color = 'blue', size = 52, strokeWidth =
       const easing = progressTime === 1 ? 1 : 1 - Math.pow(2, -10 * progressTime);
       setProgress(easing * percentage);
       if (progressTime < 1) {
-        requestAnimationFrame(animate);
+        animationFrameId = requestAnimationFrame(animate);
       }
     };
     
-    requestAnimationFrame(animate);
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
   }, [percentage]);
 
   const offset = circumference - (Math.max(0, Math.min(progress, 100)) / 100) * circumference;
@@ -87,7 +91,7 @@ function CircularProgress({ percentage, color = 'blue', size = 52, strokeWidth =
           cy={size / 2}
         />
         <circle
-          className={`${colorClasses[color as keyof typeof colorClasses] || colorClasses.blue} transition-all duration-100`}
+          className={`${colorClasses[color as keyof typeof colorClasses] || colorClasses.blue}`}
           strokeWidth={strokeWidth}
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -111,7 +115,9 @@ function ProgressBar({ percentage, color = 'blue' }: { percentage: number, color
 
   useEffect(() => {
     let startTime: number | null = null;
+    let animationFrameId: number;
     const duration = 1500;
+    setProgress(0); // Reset to 0
 
     const animate = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
@@ -119,11 +125,12 @@ function ProgressBar({ percentage, color = 'blue' }: { percentage: number, color
       const easing = progressTime === 1 ? 1 : 1 - Math.pow(2, -10 * progressTime);
       setProgress(easing * percentage);
       if (progressTime < 1) {
-        requestAnimationFrame(animate);
+        animationFrameId = requestAnimationFrame(animate);
       }
     };
 
-    requestAnimationFrame(animate);
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
   }, [percentage]);
 
   const colorClasses = {
@@ -374,16 +381,16 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 transition-all duration-500 hover:shadow-lg dark:hover:shadow-blue-500/5 group/card">
           <div 
-            className="flex items-center justify-between mb-6 cursor-pointer select-none"
-            onClick={() => setIsSectorsOpen(!isSectorsOpen)}
+            className="flex items-center justify-between mb-6 cursor-pointer lg:cursor-default select-none"
+            onClick={() => window.innerWidth < 1024 && setIsSectorsOpen(!isSectorsOpen)}
           >
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Producción por Sector</h2>
-            <div className={`p-2 rounded-lg bg-gray-50 dark:bg-white/5 text-gray-400 transition-all duration-300 ${isSectorsOpen ? 'rotate-180 text-blue-500' : ''}`}>
+            <div className={`p-2 rounded-lg bg-gray-50 dark:bg-white/5 text-gray-400 transition-all duration-300 lg:hidden ${isSectorsOpen ? 'rotate-180 text-blue-500' : ''}`}>
               <ChevronDown className="w-5 h-5" />
             </div>
           </div>
           
-          <div className={`grid transition-all duration-500 ease-in-out ${isSectorsOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+          <div className={`grid transition-all duration-500 ease-in-out lg:grid-rows-[1fr] lg:opacity-100 ${isSectorsOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
             <div className="overflow-hidden">
               <div className="space-y-4 pt-2">
                 {Object.entries(productionBySector).map(([sector, data]) => {
@@ -416,16 +423,16 @@ export function DashboardPage() {
 
         <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 transition-all duration-500 hover:shadow-lg dark:hover:shadow-blue-500/5 group/card">
           <div 
-            className="flex items-center justify-between mb-6 cursor-pointer select-none"
-            onClick={() => setIsTopProductsOpen(!isTopProductsOpen)}
+            className="flex items-center justify-between mb-6 cursor-pointer lg:cursor-default select-none"
+            onClick={() => window.innerWidth < 1024 && setIsTopProductsOpen(!isTopProductsOpen)}
           >
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Top Productos</h2>
-            <div className={`p-2 rounded-lg bg-gray-50 dark:bg-white/5 text-gray-400 transition-all duration-300 ${isTopProductsOpen ? 'rotate-180 text-blue-500' : ''}`}>
+            <div className={`p-2 rounded-lg bg-gray-50 dark:bg-white/5 text-gray-400 transition-all duration-300 lg:hidden ${isTopProductsOpen ? 'rotate-180 text-blue-500' : ''}`}>
               <ChevronDown className="w-5 h-5" />
             </div>
           </div>
 
-          <div className={`grid transition-all duration-500 ease-in-out ${isTopProductsOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+          <div className={`grid transition-all duration-500 ease-in-out lg:grid-rows-[1fr] lg:opacity-100 ${isTopProductsOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
             <div className="overflow-hidden">
               <div className="space-y-4 pt-2">
                 {topProducts.map((item, index) => (
