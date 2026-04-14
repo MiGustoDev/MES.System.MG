@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Programming, SECTOR_PRODUCTS, SECTORS, SHIFT_TYPES, Sector, ShiftType } from '../types';
-import { Calendar, Copy, Save, RefreshCw, Plus, Trash2, TrendingUp, Pencil, Check, Package, FileText, ClipboardList } from 'lucide-react';
+import { Calendar, Copy, Save, RefreshCw, Plus, Trash2, TrendingUp, Pencil, Check, Package, FileText, ClipboardList, X } from 'lucide-react';
 
 export function ProgrammingPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -19,6 +19,10 @@ export function ProgrammingPage() {
   const [excelComparison, setExcelComparison] = useState<Record<string, number>>({});
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; machineName: string | null }>({
+    isOpen: false,
+    machineName: null,
+  });
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 40);
@@ -334,6 +338,61 @@ export function ProgrammingPage() {
 
   return (
     <div className={`space-y-6 ${selectedSector === 'Armado' ? '-mx-2 md:mx-0 pr-[85px] md:pr-0' : ''}`}>
+      {/* Modern Confirmation Modal with Smooth Transitions */}
+      <div className={`fixed inset-0 w-screen h-screen z-[9999] flex items-center justify-center p-4 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${confirmModal.isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none delay-100'}`}>
+        <div 
+          className={`absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity duration-500 ${confirmModal.isOpen ? 'opacity-100' : 'opacity-0'}`}
+          onClick={() => setConfirmModal({ isOpen: false, machineName: null })}
+        />
+        <div className={`relative bg-white dark:bg-[#1a1c23] w-full max-w-md rounded-[3rem] shadow-[0_30px_100px_rgba(0,0,0,0.5)] border border-gray-200 dark:border-white/10 overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] transform ${confirmModal.isOpen ? 'scale-100 translate-y-0 opacity-100' : 'scale-90 translate-y-12 opacity-0'}`}>
+          <div className="absolute top-0 right-0 p-6">
+            <button 
+              onClick={() => setConfirmModal({ isOpen: false, machineName: null })}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <div className="p-8 md:p-12 text-center">
+            <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-red-500/20">
+              <Trash2 className="w-10 h-10 text-red-500" />
+            </div>
+            
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-4">
+              ELIMINAR {confirmModal.machineName}
+            </h3>
+            
+            <p className="text-gray-500 dark:text-gray-400 font-bold mb-10 leading-relaxed px-4">
+              ¿Estás seguro que deseas eliminar esta línea de producción? Esta acción no se puede deshacer.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => setConfirmModal({ isOpen: false, machineName: null })}
+                className="flex-1 py-4 px-6 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 dark:hover:bg-white/10 transition-all border border-gray-200 dark:border-white/10"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const machineName = confirmModal.machineName;
+                  if (machineName) {
+                    setProgramming(programming.filter(p => p.machine !== machineName || p.sector !== 'Armado' || (p.shift_type ?? 'Mañana') !== selectedShift));
+                    setMachineNames(machineNames.filter(m => m !== machineName));
+                  }
+                  setConfirmModal({ isOpen: false, machineName: null });
+                }}
+                className="flex-1 py-4 px-6 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-600/20 flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Eliminar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
         <div className="w-full lg:w-auto text-center lg:text-left">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300 tracking-tight">Programación Diaria</h1>
@@ -532,10 +591,7 @@ export function ProgrammingPage() {
                               </div>
                               <button
                                 onClick={() => {
-                                  if (confirm(`¿Eliminar ${machineName}?`)) {
-                                    setProgramming(programming.filter(p => p.machine !== machineName || p.sector !== 'Armado' || (p.shift_type ?? 'Mañana') !== selectedShift));
-                                    setMachineNames(machineNames.filter(m => m !== machineName));
-                                  }
+                                  setConfirmModal({ isOpen: true, machineName });
                                 }}
                                 className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover/card:opacity-100"
                               >
