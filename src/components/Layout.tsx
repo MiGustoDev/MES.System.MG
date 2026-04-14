@@ -7,6 +7,7 @@ import {
   BarChart3,
   History,
   Monitor,
+  Calculator,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -24,36 +25,63 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'production', label: 'Producción', icon: Package },
     { id: 'history', label: 'Historial', icon: History },
     { id: 'plant-screen', label: 'Pantalla Planta', icon: Monitor },
+    { id: 'conversor', label: 'Conversor', icon: Calculator },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f1115] transition-colors duration-300">
       <nav className="bg-white dark:bg-[#1a1c23] shadow-sm border-b border-gray-200 dark:border-white/5 transition-colors duration-300 relative z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-3 pr-2">
-              <img src="logo.png" alt="Logo" className="h-10 w-auto object-contain" />
-            </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Sistema MES</h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Gestión de Producción</p>
+        <div className="w-full relative px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 pr-2">
+                <img src="logo.png" alt="Logo" className="h-10 w-auto object-contain" />
               </div>
-            </div>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">Sistema MES</h1>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Gestión de Producción</p>
+                </div>
+              </div>
 
-            <div className="hidden md:flex items-center space-x-1">
-              {menuItems.map((item) => {
+              {/* Main Navigation - Limited by max-w-7xl */}
+              <div className="hidden md:flex items-center space-x-1">
+                {menuItems.filter(item => item.id !== 'conversor').map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentPage === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => onNavigate(item.id)}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Mobile Menu Button - Also moved to absolute for consistency if preferred, 
+                  but here we keep a placeholder for spacing or just leave empty if it's absolute below */}
+              <div className="md:hidden w-10 h-10" />
+            </div>
+          </div>
+
+          {/* Right Side Elements - UNLIMITED by max-w-7xl */}
+          <div className="absolute right-4 sm:right-6 lg:right-8 top-0 h-16 flex items-center space-x-4">
+            <div className="hidden md:flex items-center">
+              {menuItems.filter(item => item.id === 'conversor').map((item) => {
                 const Icon = item.icon;
-                const isActive = currentPage === item.id;
                 return (
                   <button
                     key={item.id}
                     onClick={() => onNavigate(item.id)}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                      isActive
-                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'
-                    }`}
+                    className="flex items-center space-x-2 px-4 py-2.5 rounded-xl font-bold transition-all border-2 border-blue-100 dark:border-blue-900/30 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 shadow-sm shadow-blue-500/10"
                   >
                     <Icon className="w-4 h-4" />
                     <span>{item.label}</span>
