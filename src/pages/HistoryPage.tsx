@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { History, SECTORS, Sector, SHIFT_TYPES, ShiftType, SECTOR_PRODUCTS, calculateStatus } from '../types';
 import { Calendar, Beef, ChefHat, ListRestart, Package, Droplets, Info, TrendingUp, Target, Activity } from 'lucide-react';
+import { CalendarDropdown } from '../components/CalendarDropdown';
 import { formatNumber } from '../utils/format';
 
 const SECTOR_ICONS: Record<string, any> = {
@@ -71,39 +72,31 @@ export function HistoryPage() {
   const totalDifference = totalProduced - totalPlanned;
   const overallStatus = totalPlanned > 0 ? calculateStatus(totalDifference) : 'OK';
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="flex items-center justify-center h-64">
+  //       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  //     </div>
+  //   );
+  // }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 relative">
+      {loading && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-white/10 dark:bg-black/10 backdrop-blur-[1px] rounded-3xl">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      )}
       <div className="flex flex-col lg:flex-row justify-between items-center lg:items-center gap-4">
         <div className="text-center lg:text-left w-full lg:w-auto">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Historial de Producción</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1 font-medium">Análisis detallado de la planta por jornada</p>
         </div>
         
-        <div 
-          className="relative w-fit mx-auto lg:w-auto min-w-[200px] px-6 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-center lg:justify-between gap-3 transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-500/50 group text-sm sm:text-base pr-8 shadow-sm"
-          onClick={() => dateInputRef.current?.showPicker()}
-        >
-          <input
-            ref={dateInputRef}
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none"
-          />
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
-            <span className="font-bold">{selectedDate.split('-').reverse().join('/')}</span>
-          </div>
-          <Calendar className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 transition-colors absolute right-3" />
-        </div>
+        <CalendarDropdown
+          selectedDate={selectedDate}
+          onSelect={setSelectedDate}
+        />
       </div>
 
       <div className="flex flex-col items-center gap-4">

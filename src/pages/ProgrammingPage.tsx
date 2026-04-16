@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Programming, SECTOR_PRODUCTS, SECTORS, SHIFT_TYPES, Sector, ShiftType } from '../types';
 import { Calendar, Copy, Save, RefreshCw, Plus, Trash2, TrendingUp, Pencil, Check, Package, FileText, ClipboardList, X } from 'lucide-react';
+import { CalendarDropdown } from '../components/CalendarDropdown';
 
 export function ProgrammingPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -310,13 +311,13 @@ export function ProgrammingPage() {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="flex items-center justify-center h-64">
+  //       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  //     </div>
+  //   );
+  // }
 
   const visibleProgramming = programming.filter(
     (row) => 
@@ -337,7 +338,12 @@ export function ProgrammingPage() {
   }, {} as Record<string, number>);
 
   return (
-    <div className={`space-y-6 ${selectedSector === 'Armado' ? '-mx-2 md:mx-0 pr-[85px] md:pr-0' : ''}`}>
+    <div className={`space-y-6 ${selectedSector === 'Armado' ? '-mx-2 md:mx-0 pr-[85px] md:pr-0' : ''} relative`}>
+      {loading && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-white/10 dark:bg-black/10 backdrop-blur-[1px] rounded-3xl">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      )}
       {/* Modern Confirmation Modal with Smooth Transitions */}
       <div className={`fixed inset-0 w-screen h-screen z-[9999] flex items-center justify-center p-4 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${confirmModal.isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none delay-100'}`}>
         <div 
@@ -455,20 +461,10 @@ export function ProgrammingPage() {
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
 
-            <div 
-              className="relative flex-1 lg:flex-initial min-w-[130px] px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-2 text-sm sm:text-base transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-500/50 group shadow-sm font-bold"
-              onClick={() => dateInputRef.current?.showPicker()}
-            >
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none"
-              />
-              <span>{selectedDate.split('-').reverse().join('/')}</span>
-              <Calendar className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 transition-colors" />
-            </div>
+            <CalendarDropdown
+              selectedDate={selectedDate}
+              onSelect={setSelectedDate}
+            />
           </div>
         </div>
       </div>

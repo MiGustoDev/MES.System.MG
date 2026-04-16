@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Production, SECTORS, Sector, SHIFT_TYPES, ShiftType, SECTOR_PRODUCTS, calculateDifference, calculateStatus } from '../types';
 import { Calendar, PlayCircle, Save, StopCircle, AlertTriangle, Pencil, Check, TrendingUp, Package } from 'lucide-react';
+import { CalendarDropdown } from '../components/CalendarDropdown';
 import { formatNumber } from '../utils/format';
 
 const SECTOR_UNITS: Record<string, string> = {
@@ -230,13 +231,13 @@ export function ProductionPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="flex items-center justify-center h-64">
+  //       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  //     </div>
+  //   );
+  // }
 
   const totalPlanned = production.reduce((sum, p) => sum + p.planned, 0);
   const totalProduced = production.reduce((sum, p) => sum + p.produced, 0);
@@ -244,7 +245,12 @@ export function ProductionPage() {
   const overallStatus = calculateStatus(totalDifference);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {loading && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-white/10 dark:bg-black/10 backdrop-blur-[1px] rounded-3xl">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      )}
       {/* CONFIRMATION MODAL */}
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -284,20 +290,10 @@ export function ProductionPage() {
         </div>
         
         <div className="flex items-center justify-center lg:justify-end gap-3 w-full lg:w-auto">
-          <div 
-            className="relative min-w-[130px] px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-2 text-sm sm:text-base transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-500/50 group shadow-sm font-bold"
-            onClick={() => dateInputRef.current?.showPicker()}
-          >
-            <input
-              ref={dateInputRef}
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none"
-            />
-            <span>{selectedDate.split('-').reverse().join('/')}</span>
-            <Calendar className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 transition-colors" />
-          </div>
+          <CalendarDropdown
+            selectedDate={selectedDate}
+            onSelect={setSelectedDate}
+          />
         </div>
       </div>
 

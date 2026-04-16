@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { formatNumber } from '../utils/format';
 import { Production, SECTORS, Sector, calculateDifference, calculateStatus } from '../types';
 import { Calendar, TrendingUp, TrendingDown, Minus, Info, BarChart3, PieChart, Activity, Target, ChevronDown } from 'lucide-react';
+import { CalendarDropdown } from '../components/CalendarDropdown';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
   Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
@@ -282,35 +283,30 @@ export function DashboardPage() {
 
   const dateInputRef = useRef<HTMLInputElement>(null);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="flex items-center justify-center h-64">
+  //       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  //     </div>
+  //   );
+  // }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {loading && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-white/10 dark:bg-black/10 backdrop-blur-[1px] rounded-3xl">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-300">Dashboard Gerencial</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300">Vista general de producción</p>
         </div>
-        <div 
-          className="relative min-w-[140px] px-4 py-2 bg-white dark:bg-[#1a1c23] border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white flex items-center justify-between gap-3 transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-500/50 group"
-          onClick={() => dateInputRef.current?.showPicker()}
-        >
-          <input
-            ref={dateInputRef}
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none"
-          />
-          <span className="font-medium">{selectedDate.split('-').reverse().join('/')}</span>
-          <Calendar className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 transition-colors" />
-        </div>
+        <CalendarDropdown
+          selectedDate={selectedDate}
+          onSelect={setSelectedDate}
+        />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
