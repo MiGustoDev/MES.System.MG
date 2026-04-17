@@ -6,6 +6,7 @@ import { ProgrammingPage } from './pages/ProgrammingPage';
 import { ProductionPage } from './pages/ProductionPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { PlantScreenPage } from './pages/PlantScreenPage';
+import { ConversorPage } from './pages/ConversorPage';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -24,6 +25,8 @@ function AppContent() {
         return <ProductionPage />;
       case 'history':
         return <HistoryPage />;
+      case 'conversor':
+        return <ConversorPage />;
       default:
         return <DashboardPage />;
     }
