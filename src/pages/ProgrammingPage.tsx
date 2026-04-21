@@ -21,15 +21,47 @@ export function ProgrammingPage() {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; machineName: string | null }>({
-    isOpen: false,
     machineName: null,
   });
+  const [converterResults, setConverterResults] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 40);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    const loadConverterData = () => {
+      const saved = localStorage.getItem('converter_results');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          const map: Record<string, number> = {};
+          parsed.forEach((row: any) => {
+            const key = (row.product || row.gusto || '').trim();
+            if (key) {
+              map[key] = row.armarBand;
+            }
+          });
+          setConverterResults(map);
+        } catch (e) {
+          console.error('Error parsing converter results:', e);
+        }
+      } else {
+        setConverterResults({});
+      }
+    };
+
+    loadConverterData();
+    window.addEventListener('converter-updated', loadConverterData);
+    window.addEventListener('focus', loadConverterData);
+    
+    return () => {
+      window.removeEventListener('converter-updated', loadConverterData);
+      window.removeEventListener('focus', loadConverterData);
+    };
+  }, [selectedSector, selectedShift]);
 
   useEffect(() => {
     if (selectedSector === 'Armado') {
@@ -870,11 +902,96 @@ export function ProgrammingPage() {
             );
           }
 
+          const COCINA_ONLY = ['PC', 'MT', 'MPP'];
+          const PICADILLO_ONLY = ['JQ', 'JH', 'CH', 'RJ', '4Q', 'PA'];
+          const BOTH_SECTORS = ['EB', 'BB', 'CS', 'CP', 'CA', 'CC', 'PO', 'AC', 'VP', 'QC', 'CZ', 'V'];
+
           let filteredRows = visibleProgramming;
-          if (selectedSector === 'Picadillo') {
-            filteredRows = isPicadilloMP 
-              ? visibleProgramming.filter(p => picadilloMPList.includes(p.product))
-              : visibleProgramming.filter(p => !picadilloMPList.includes(p.product));
+          if (selectedSector === 'Cocina') {
+            filteredRows = visibleProgramming.filter(p => {
+              const prod = p.product.trim().toUpperCase();
+              return COCINA_ONLY.includes(prod) || BOTH_SECTORS.includes(prod);
+            });
+          } else if (selectedSector === 'Picadillo') {
+            if (isPicadilloMP) {
+              filteredRows = visibleProgramming.filter(p => picadilloMPList.includes(p.product));
+            } else {
+              filteredRows = visibleProgramming.filter(p => {
+                const prod = p.product.trim().toUpperCase();
+                return PICADILLO_ONLY.includes(prod) || BOTH_SECTORS.includes(prod);
+              });
+            }
+          }
+
+          const isModernSector = ['Mesa de Carnes', 'Cocina', 'Picadillo', 'Salsas'].includes(selectedSector);
+
+          if (isModernSector) {
+            const sectorThemes: Record<string, { color: string, ring: string, bullet: string }> = {
+              'Cocina': { color: 'text-blue-500', ring: 'focus:border-blue-500/50', bullet: 'bg-blue-500' },
+              'Picadillo': { color: 'text-amber-500', ring: 'focus:border-amber-500/50', bullet: 'bg-amber-500' },
+              'Mesa de Carnes': { color: 'text-rose-500', ring: 'focus:border-rose-500/50', bullet: 'bg-rose-500' },
+              'Salsas': { color: 'text-emerald-500', ring: 'focus:border-emerald-500/50', bullet: 'bg-emerald-500' },
+            };
+            const theme = sectorThemes[selectedSector] || sectorThemes['Cocina'];
+
+            return (
+              <div key={sectionTitle} className="max-w-[1400px] mx-auto animate-in fade-in duration-500 pb-12">
+                <div className="flex items-center justify-between mb-8 px-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-1 h-6 rounded-full ${theme.bullet}`}></div>
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{sectionTitle}</h3>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest border border-gray-200 dark:border-white/10 px-3 py-1 rounded-full">PLANIFICACIÓN DIARIA</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 px-2 sm:px-0">
+                  {filteredRows.map((row) => {
+                    const refValue = converterResults[row.product.trim()];
+                    const hasRef = refValue !== undefined;
+                    const formattedRef = hasRef 
+                      ? (refValue % 1 !== 0 ? refValue.toString().replace('.', ',') : refValue)
+                      : '0';
+
+                    return (
+                      <div key={row.id} className="group flex items-center justify-between bg-white dark:bg-white/[0.03] hover:bg-gray-50 dark:hover:bg-white/[0.08] p-4 sm:p-5 transition-all duration-300 border border-gray-100 dark:border-white/5 rounded-3xl shadow-sm hover:shadow-xl">
+                        {/* Left: Product Info */}
+                        <div className="flex items-center gap-4 sm:gap-6">
+                           <div className="flex flex-col min-w-[70px] sm:min-w-[90px]">
+                            <p className="text-[9px] font-black text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-0.5">{row.shift_type || 'MAÑANA'}</p>
+                            <h4 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tighter uppercase leading-none">{row.product}</h4>
+                          </div>
+                        </div>
+
+                        {/* Right: Data & Input unit - Tightened */}
+                        <div className="flex items-center gap-5 sm:gap-8">
+                          {/* Reference Block */}
+                          <div className="flex flex-col items-end">
+                            <span className="text-[8px] font-black text-blue-500/50 uppercase tracking-widest mb-0.5 whitespace-nowrap">Ref. Armar</span>
+                            <span className="text-lg font-black text-blue-500 dark:text-blue-400 leading-none">{formattedRef}</span>
+                          </div>
+
+                          {/* Mini Input Box */}
+                          <div className="relative flex flex-col items-end">
+                             <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-1 px-1">PLANIFICADO</span>
+                             <input 
+                              type="number" 
+                              value={row.planned_kg === 0 ? '' : row.planned_kg} 
+                              onChange={(e) => updateRow(row.id, 'planned_kg', e.target.value === '' ? 0 : parseFloat(e.target.value))} 
+                              min="0" 
+                              step="0.1" 
+                              placeholder="0" 
+                              className={`w-24 sm:w-32 bg-gray-100/50 dark:bg-black/40 border-2 border-transparent ${theme.ring} px-2 py-2 text-xl sm:text-2xl font-black text-gray-900 dark:text-white text-right focus:bg-white dark:focus:bg-black transition-all outline-none rounded-xl`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
           }
 
           if (filteredRows.length === 0) return null;
@@ -885,14 +1002,40 @@ export function ProgrammingPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-black/10 border-b border-gray-200 dark:border-white/10">
-                    <tr><th className="px-3 sm:px-8 py-4 text-left text-[9px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest w-[40%] sm:w-1/3">Producto</th><th className="px-1 sm:px-8 py-4 text-center text-[9px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest w-[20%] sm:w-40">Turno</th><th className="px-3 sm:px-8 py-4 text-right text-[9px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest w-[40%] sm:w-48">Planificado</th></tr>
+                    <tr>
+                      <th className="px-3 sm:px-8 py-4 text-left text-[9px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest w-[40%] sm:w-1/3">Producto</th>
+                      <th className="px-1 sm:px-8 py-4 text-center text-[9px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest w-[20%] sm:w-40">Turno</th>
+                      <th className="px-3 sm:px-8 py-4 text-right text-[9px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest">Planificado</th>
+                    </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                     {filteredRows.map((row) => (
                       <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
                         <td className="px-3 sm:px-8 py-3 sm:py-4"><span className="text-[11px] sm:text-base font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors uppercase tracking-tight">{row.product}</span></td>
                         <td className="px-1 sm:px-8 py-3 sm:py-4 text-center"><span className="inline-flex px-2 sm:px-3 py-1 rounded-full text-[8px] sm:text-[10px] font-black bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-white/10 uppercase tracking-widest">{row.shift_type ?? 'Mañana'}</span></td>
-                        <td className="px-3 sm:px-8 py-3 sm:py-4 text-right"><input type="number" value={row.planned_kg === 0 ? '' : row.planned_kg} onChange={(e) => updateRow(row.id, 'planned_kg', e.target.value === '' ? 0 : parseFloat(e.target.value))} min="0" step="0.1" placeholder="0" className="w-20 sm:w-28 inline-block px-2 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-lg font-black text-right bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-inner" /></td>
+                        <td className="px-3 sm:px-8 py-3 sm:py-4 text-right">
+                          <div className="flex items-center justify-end gap-6 sm:gap-12">
+                            <div className="text-right">
+                               <p className="text-[8px] sm:text-[10px] font-black text-blue-500/40 uppercase tracking-widest leading-none mb-1 text-center">Bnd. Armar</p>
+                               <p className="text-sm sm:text-xl font-black text-blue-600 dark:text-blue-400 leading-none text-center">
+                                 {converterResults[row.product.trim()] !== undefined 
+                                   ? (converterResults[row.product.trim()] % 1 !== 0 
+                                       ? converterResults[row.product.trim()].toString().replace('.', ',') 
+                                       : converterResults[row.product.trim()])
+                                   : '-'}
+                               </p>
+                            </div>
+                            <input 
+                              type="number" 
+                              value={row.planned_kg === 0 ? '' : row.planned_kg} 
+                              onChange={(e) => updateRow(row.id, 'planned_kg', e.target.value === '' ? 0 : parseFloat(e.target.value))} 
+                              min="0" 
+                              step="0.1" 
+                              placeholder="0" 
+                              className="w-24 sm:w-36 inline-block px-4 sm:px-6 py-2 sm:py-3 text-lg sm:text-2xl font-black text-right bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-2xl text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-inner" 
+                            />
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

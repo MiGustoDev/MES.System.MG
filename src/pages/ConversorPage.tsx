@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   FileSpreadsheet, 
   BarChart3, 
@@ -26,52 +26,191 @@ interface ParsedRow {
   armarBand: number;
   stockBateas: number;
   bateasPArmar: number;
+  coccion: number;
+  carnes: string;
+  // Nuevos campos de configuración
+  bateasConfig: number;
+  bandejasConfig: number;
+  coccionesConfig: number;
+  bateas2Config: number;
+  // Field to store original calculation from Excel for recalculation
+  theoreticalBateas?: number;
 }
+
+const PRODUCT_EQUIVALENCIES: Record<string, { bandejas: number, cocciones: number, bateas: number, rec: string }> = {
+  'CP': { bandejas: 7, cocciones: 1, bateas: 10, rec: '120' },
+  'EB': { bandejas: 7, cocciones: 1, bateas: 4, rec: '100' },
+  'AC': { bandejas: 9, cocciones: 1, bateas: 2, rec: '80' },
+  'BB': { bandejas: 7, cocciones: 1, bateas: 4, rec: '100' },
+  'MPP': { bandejas: 8, cocciones: 1, bateas: 7, rec: '80 + 20' },
+  'CC': { bandejas: 7.5, cocciones: 1, bateas: 4, rec: '120' },
+  'CA': { bandejas: 8.5, cocciones: 1, bateas: 10, rec: '120' },
+  'CS': { bandejas: 7, cocciones: 1, bateas: 10, rec: '120' },
+  'PO': { bandejas: 7, cocciones: 1, bateas: 6, rec: '75' },
+  'PA': { bandejas: 13, cocciones: 0, bateas: 1, rec: '' },
+  'PC': { bandejas: 6.7, cocciones: 1, bateas: 6, rec: '65' },
+  'JQ': { bandejas: 10, cocciones: 0, bateas: 1, rec: '24' },
+  'VP': { bandejas: 8.5, cocciones: 1, bateas: 6, rec: '120' },
+  'MT': { bandejas: 7.3, cocciones: 1, bateas: 4, rec: '120' },
+  'QC': { bandejas: 9, cocciones: 1, bateas: 4, rec: '70' },
+  'RJ': { bandejas: 9, cocciones: 0, bateas: 1, rec: '24' },
+  'CH': { bandejas: 8, cocciones: 0, bateas: 8, rec: '12 + 8' },
+  'V': { bandejas: 10.5, cocciones: 0, bateas: 4, rec: '50' },
+  'JH': { bandejas: 9.5, cocciones: 0, bateas: 1, rec: '28' },
+  '4Q': { bandejas: 8.5, cocciones: 0, bateas: 1, rec: '24' },
+  'CZ': { bandejas: 9.5, cocciones: 1, bateas: 4, rec: '12 + 14' },
+};
 
 export function ConversorPage() {
   const [data, setData] = useState('');
   const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const processData = () => {
-    setIsProcessing(true);
-    // Simulation of delay for better UX feel
-    setTimeout(() => {
-      const lines = data.trim().split('\n');
-      const results: ParsedRow[] = [];
-
-      lines.forEach(line => {
-        // Handle tab-separated (standard excel paste) or multiple spaces
-        const parts = line.split(/\t|\s{2,}/).map(p => p.trim());
-        
-        // Skip header or empty lines or "TOTAL" row
-        if (parts.length < 2 || parts[0].toUpperCase() === 'GUSTOS' || parts[0].toUpperCase() === 'TOTAL' || parts[0].toUpperCase() === 'PROGRAMACION') {
-          return;
-        }
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (data.trim()) {
+        const lines = data.trim().split('\n');
+        const results: ParsedRow[] = [];
 
         const parseNum = (str: string) => {
           if (!str) return 0;
           return parseFloat(str.replace(',', '.').replace(/[^\d.-]/g, '')) || 0;
         };
 
-        results.push({
-          gusto: parts[0],
-          programacion: parseNum(parts[1]),
-          stockBandejas: parseNum(parts[2]),
-          armarBand: parseNum(parts[3]),
-          stockBateas: parseNum(parts[4]),
-          bateasPArmar: parseNum(parts[5]),
-        });
-      });
+        lines.forEach(line => {
+          const parts = line.split(/\t/).map(p => p.trim());
+          if (parts.length < 2 || parts[0].toUpperCase() === 'GUSTOS' || parts[0].toUpperCase() === 'TOTAL' || parts[0].toUpperCase() === 'PROGRAMACION') return;
 
-      setParsedData(results);
-      setIsProcessing(false);
-    }, 800);
+          const programacion = parseNum(parts[1]);
+          const stockBandejas = parseNum(parts[2]);
+          const stockBateas = parseNum(parts[4]);
+          
+          const gusto = parts[0];
+          const equiv = PRODUCT_EQUIVALENCIES[gusto.toUpperCase()];
+          
+          const bateasConfig = parseNum(parts[8]) || 1;
+          const bandejasConfig = equiv ? (equiv.bandejas || parseNum(parts[9])) : (parseNum(parts[9]) || 1);
+          const coccionesConfig = equiv ? (equiv.cocciones || parseNum(parts[10])) : parseNum(parts[10]);
+          const bateas2Config = equiv ? (equiv.bateas || parseNum(parts[11])) : (parseNum(parts[11]) || 1);
+          
+          const armarBand = programacion - stockBandejas;
+          const bateasPArmar = (armarBand / bandejasConfig) - stockBateas;
+          
+          results.push({
+            gusto,
+            programacion,
+            stockBandejas,
+            armarBand,
+            stockBateas,
+            bateasPArmar,
+            theoreticalBateas: bateasPArmar + stockBateas,
+            coccion: bateasPArmar / bateas2Config,
+            carnes: parts[7] || (equiv ? equiv.rec : ''),
+            bateasConfig,
+            bandejasConfig,
+            coccionesConfig,
+            bateas2Config,
+          });
+        });
+
+        setParsedData(results);
+      } else {
+        setParsedData([]);
+      }
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [data]);
+
+  useEffect(() => {
+    if (parsedData.length > 0) {
+      localStorage.setItem('converter_results', JSON.stringify(parsedData));
+      window.dispatchEvent(new CustomEvent('converter-updated'));
+    } else {
+      localStorage.removeItem('converter_results');
+      window.dispatchEvent(new CustomEvent('converter-updated'));
+    }
+  }, [parsedData]);
+
+  const updateStockBandejas = (index: number, val: string) => {
+    // Basic cleaning to allow typing commas/dots
+    const cleanedVal = val.replace(',', '.');
+    const numericVal = parseFloat(cleanedVal) || 0;
+    
+    const newData = [...parsedData];
+    const row = newData[index];
+    const updatedArmarBand = row.programacion - numericVal;
+    const updatedBateasPArmar = (updatedArmarBand / (row.bandejasConfig || 1)) - row.stockBateas;
+    
+    newData[index] = {
+      ...row,
+      stockBandejas: numericVal,
+      armarBand: updatedArmarBand,
+      bateasPArmar: updatedBateasPArmar,
+      coccion: updatedBateasPArmar / (row.bateas2Config || 1)
+    };
+    setParsedData(newData);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent, startIndex: number, type: 'bandejas' | 'bateas') => {
+    const pasteData = e.clipboardData.getData('text');
+    if (!pasteData.includes('\n')) return; // Seguir comportamiento normal si no es una columna
+
+    e.preventDefault();
+    const rows = pasteData.split(/\r?\n/).map(row => row.trim()).filter(row => row !== '');
+    const newData = [...parsedData];
+
+    rows.forEach((value, i) => {
+      const targetIndex = startIndex + i;
+      if (targetIndex >= newData.length) return;
+
+      const numericVal = parseFloat(value.replace(',', '.')) || 0;
+      const row = newData[targetIndex];
+
+      if (type === 'bandejas') {
+        const updatedArmarBand = row.programacion - numericVal;
+        const updatedBateasPArmar = (updatedArmarBand / (row.bandejasConfig || 1)) - row.stockBateas;
+        newData[targetIndex] = {
+          ...row,
+          stockBandejas: numericVal,
+          armarBand: updatedArmarBand,
+          bateasPArmar: updatedBateasPArmar,
+          coccion: updatedBateasPArmar / (row.bateas2Config || 1)
+        };
+      } else {
+        const updatedBateasPArmar = (row.armarBand / (row.bandejasConfig || 1)) - numericVal;
+        newData[targetIndex] = {
+          ...row,
+          stockBateas: numericVal,
+          bateasPArmar: updatedBateasPArmar,
+          coccion: updatedBateasPArmar / (row.bateas2Config || 1)
+        };
+      }
+    });
+
+    setParsedData(newData);
+  };
+
+  const updateStockBateas = (index: number, val: string) => {
+    const cleanedVal = val.replace(',', '.');
+    const numericVal = parseFloat(cleanedVal) || 0;
+    
+    const newData = [...parsedData];
+    const row = newData[index];
+    const updatedBateasPArmar = (row.armarBand / (row.bandejasConfig || 1)) - numericVal;
+    
+    newData[index] = {
+      ...row,
+      stockBateas: numericVal,
+      bateasPArmar: updatedBateasPArmar,
+      coccion: updatedBateasPArmar / (row.bateas2Config || 1)
+    };
+    setParsedData(newData);
   };
 
   const totalProgramacion = parsedData.reduce((acc, row) => acc + row.programacion, 0);
   const totalStockBandejas = parsedData.reduce((acc, row) => acc + row.stockBandejas, 0);
   const totalArmarBand = parsedData.reduce((acc, row) => acc + row.armarBand, 0);
+  const totalBateasPArmar = parsedData.reduce((acc, row) => acc + row.bateasPArmar, 0);
   
   const chartData = parsedData.slice(0, 15); // Show top 15 for better chart visibility
   
@@ -91,24 +230,12 @@ export function ConversorPage() {
         </div>
         <div className="flex items-center gap-3 relative z-10 w-full md:w-auto">
           <button 
-            disabled={!data || isProcessing}
+            disabled={!data}
             onClick={() => { setData(''); setParsedData([]); }}
-            className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-6 py-3 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500/20 transition-all font-black text-xs uppercase tracking-widest disabled:opacity-30 disabled:pointer-events-none"
+            className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-8 py-3 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500/20 transition-all font-black text-xs uppercase tracking-widest disabled:opacity-30 disabled:pointer-events-none"
           >
             <Trash2 className="w-4 h-4" />
-            <span>Limpiar</span>
-          </button>
-          <button 
-            disabled={!data || isProcessing}
-            onClick={processData}
-            className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/30 hover:scale-[1.02] active:scale-95 group/btn disabled:opacity-50 disabled:pointer-events-none"
-          >
-            {isProcessing ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <TrendingUp className="w-4 h-4 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
-            )}
-            <span>{isProcessing ? 'Procesando...' : 'Procesar Datos'}</span>
+            <span>Limpiar Datos</span>
           </button>
         </div>
       </div>
@@ -245,9 +372,11 @@ export function ConversorPage() {
                 )}
               </div>
            </div>
+        </div>
+      </div>
 
-           {/* Table Summary */}
-           <div className="bg-white dark:bg-[#1a1c23] rounded-[2.5rem] border border-gray-200 dark:border-white/5 shadow-xl overflow-hidden">
+      {/* Table Summary - Moved outside to take full width */}
+      <div className="bg-white dark:bg-[#1a1c23] rounded-[2.5rem] border border-gray-200 dark:border-white/5 shadow-xl overflow-hidden">
              <div className="px-8 py-6 bg-gray-50/50 dark:bg-black/20 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
@@ -257,42 +386,109 @@ export function ConversorPage() {
                   {parsedData.length} ítems procesados
                 </div>
              </div>
-             <div className="overflow-x-auto">
-               <table className="w-full text-left">
-                 <thead className="bg-gray-50/30 dark:bg-white/5 text-[10px] font-black uppercase text-gray-400">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead className="bg-[#4d7c71] text-white text-[11px] font-bold uppercase tracking-wider">
                     <tr>
-                      <th className="px-8 py-4">Gusto</th>
-                      <th className="px-4 py-4 text-right">Prog.</th>
-                      <th className="px-4 py-4 text-right">Stk Band.</th>
-                      <th className="px-4 py-4 text-right">Stk Bat.</th>
-                      <th className="px-8 py-4 text-right">Bat. p/Arm.</th>
+                      <th className="px-3 py-3 border border-white/20 text-left">GUSTOS</th>
+                      <th className="px-3 py-3 border border-white/20 text-center">PROGRAMACION</th>
+                      <th className="px-3 py-3 border border-white/20 text-center text-[9px] leading-tight font-black">STOCK<br/>BANDEJAS</th>
+                      <th className="px-3 py-3 border border-white/20 text-center relative pt-6 pb-2">
+                        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-white/10 border border-white/10 rounded-full flex items-center justify-center">
+                          <span className="text-[7px] font-black uppercase tracking-widest text-white/60">Armado</span>
+                        </div>
+                        <span className="block text-[10px] font-black uppercase tracking-wider">BANDEJAS A ARMAR</span>
+                      </th>
+                      <th className="px-3 py-3 border border-white/20 text-center text-[9px] leading-tight font-black">STOCK<br/>BATEAS</th>
+                      <th className="px-3 py-3 border border-white/20 text-center relative pt-6 pb-2">
+                        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-white/10 border border-white/10 rounded-full flex items-center justify-center">
+                          <span className="text-[7px] font-black uppercase tracking-widest text-white/60">Picadillo</span>
+                        </div>
+                        <span className="block text-[10px] font-black uppercase tracking-wider">BATEAS P. ARMAR</span>
+                      </th>
+                      <th className="px-3 py-3 border border-white/20 text-center relative pt-6 pb-2">
+                        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-white/10 border border-white/10 rounded-full flex items-center justify-center">
+                          <span className="text-[7px] font-black uppercase tracking-widest text-white/60">Cocina</span>
+                        </div>
+                        <span className="block text-[10px] font-black uppercase tracking-wider">COCCION</span>
+                      </th>
+                      <th className="px-3 py-3 border border-white/20 text-center relative pt-6 pb-2">
+                        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-white/10 border border-white/10 rounded-full flex items-center justify-center">
+                          <span className="text-[7px] font-black uppercase tracking-widest text-white/60">KG</span>
+                        </div>
+                        <span className="block text-[10px] font-black uppercase tracking-wider">CARNES</span>
+                      </th>
+                      
+                      {/* Separador visual para la segunda parte */}
+                      <th className="bg-slate-600 px-3 py-3 border border-white/20 text-left">GUSTOS</th>
+                      <th className="bg-slate-700 px-3 py-3 border border-white/20 text-center">BATEAS</th>
+                      <th className="bg-slate-700 px-3 py-3 border border-white/20 text-center">BANDEJAS</th>
+                      <th className="bg-blue-900/40 px-3 py-3 border border-white/20 text-center">COCCIONES</th>
+                      <th className="bg-blue-900/40 px-3 py-3 border border-white/20 text-center">BATEAS</th>
                     </tr>
-                 </thead>
-                 <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-                   {parsedData.map((row, idx) => (
-                     <tr key={idx} className="hover:bg-blue-500/5 transition-colors group">
-                       <td className="px-8 py-4 text-sm font-bold text-gray-900 dark:text-white">{row.gusto}</td>
-                       <td className="px-4 py-4 text-sm font-black text-right text-blue-600 dark:text-blue-400">{row.programacion}</td>
-                       <td className="px-4 py-4 text-sm font-medium text-right text-gray-500 dark:text-gray-400">{row.stockBandejas}</td>
-                       <td className="px-4 py-4 text-sm font-medium text-right text-gray-500 dark:text-gray-400">{row.stockBateas}</td>
-                       <td className="px-8 py-4 text-sm font-black text-right text-gray-900 dark:text-white">{row.bateasPArmar}</td>
-                     </tr>
-                   ))}
-                   {parsedData.length === 0 && (
-                     <tr>
-                       <td colSpan={5} className="p-20 text-center opacity-30">
-                         <p className="p-20 text-center opacity-30">
-                            <p className="text-sm font-bold uppercase tracking-[0.2em] italic">Procese los datos para generar el desglose</p>
-                         </p>
-                       </td>
-                     </tr>
-                   )}
-                 </tbody>
-               </table>
-             </div>
+                  </thead>
+                  <tbody className="bg-white dark:bg-[#1a1c23]">
+                    {parsedData.map((row, idx) => (
+                      <tr key={idx} className={`${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-white/5' : 'bg-white dark:bg-[#1a1c23]'} border-b border-gray-100 dark:border-white/5 text-center`}>
+                        <td className="px-3 py-2 border-x border-gray-100 dark:border-white/5 text-left font-black text-[12px] text-gray-800 dark:text-gray-200">{row.gusto}</td>
+                        <td className="px-3 py-2 border-x border-gray-100 dark:border-white/5 font-black text-[13px] text-gray-900 dark:text-white">{row.programacion % 1 !== 0 ? row.programacion.toString().replace('.', ',') : row.programacion}</td>
+                        <td className="px-3 py-2 border-x border-gray-100 dark:border-white/5">
+                          <input 
+                            type="text"
+                            value={row.stockBandejas || ''}
+                            onChange={(e) => updateStockBandejas(idx, e.target.value)}
+                            onPaste={(e) => handlePaste(e, idx, 'bandejas')}
+                            className="w-16 bg-blue-50/50 dark:bg-blue-500/5 text-center focus:bg-blue-100 dark:focus:bg-blue-500/20 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded-lg p-1 transition-all font-bold text-gray-600 dark:text-gray-400"
+                          />
+                        </td>
+                         <td className="px-3 py-2 border-x border-gray-100 dark:border-white/5 font-black text-[13px] text-[#4d7c71]">{row.armarBand % 1 !== 0 ? row.armarBand.toString().replace('.', ',') : row.armarBand}</td>
+                        <td className="px-3 py-2 border-x border-gray-100 dark:border-white/5">
+                          <input 
+                            type="text"
+                            value={row.stockBateas || ''}
+                            onChange={(e) => updateStockBateas(idx, e.target.value)}
+                            onPaste={(e) => handlePaste(e, idx, 'bateas')}
+                            className="w-16 bg-blue-50/50 dark:bg-blue-500/5 text-center focus:bg-blue-100 dark:focus:bg-blue-500/20 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded-lg p-1 transition-all font-bold text-gray-600 dark:text-gray-400"
+                          />
+                        </td>
+                        <td className="px-3 py-2 border-x border-gray-100 dark:border-white/5 font-black text-[13px] text-gray-900 dark:text-white">{row.bateasPArmar.toFixed(1).replace('.', ',')}</td>
+                        <td className="px-3 py-2 border-x border-gray-100 dark:border-white/5 font-bold text-gray-700 dark:text-gray-300">{row.coccion.toFixed(1).replace('.', ',')}</td>
+                        <td className="px-3 py-2 border-x border-gray-100 dark:border-white/5 font-bold text-gray-700 dark:text-gray-300">{row.carnes}</td>
+                        
+                        {/* Segunda parte - Configuración */}
+                        <td className="bg-slate-200/30 dark:bg-slate-800/40 px-3 py-2 border-x border-gray-100 dark:border-white/5 text-left font-bold text-[12px] text-slate-500">{row.gusto}</td>
+                        {/* Grupo 1: Bateas / Bandejas */}
+                        <td className="bg-slate-200/50 dark:bg-slate-800/60 px-3 py-2 border-x border-gray-100 dark:border-white/5 font-bold text-slate-600 dark:text-slate-200">{row.bateasConfig || ''}</td>
+                        <td className="bg-slate-200/50 dark:bg-slate-800/60 px-3 py-2 border-x border-gray-100 dark:border-white/5 font-bold text-slate-600 dark:text-slate-200">{row.bandejasConfig % 1 !== 0 ? row.bandejasConfig.toString().replace('.', ',') : (row.bandejasConfig || '')}</td>
+                        {/* Grupo 2: Cocciones / Bateas */}
+                        <td className="bg-blue-50/30 dark:bg-blue-900/20 px-3 py-2 border-x border-gray-100 dark:border-white/5 font-bold text-blue-600 dark:text-blue-300">{row.coccionesConfig !== 0 ? row.coccionesConfig : ''}</td>
+                        <td className="bg-blue-50/30 dark:bg-blue-900/20 px-3 py-2 border-x border-gray-100 dark:border-white/5 font-bold text-blue-600 dark:text-blue-300">{row.bateas2Config || ''}</td>
+                      </tr>
+                    ))}
+                    {parsedData.length > 0 && (
+                      <tr className="bg-[#4d7c71]/10 dark:bg-white/5 font-black text-[13px]">
+                        <td className="px-3 py-3 border-x border-[#4d7c71]/20 text-left text-[#4d7c71] dark:text-white">TOTAL</td>
+                        <td className="px-3 py-3 border-x border-[#4d7c71]/20 text-center text-[#4d7c71] dark:text-white">{totalProgramacion.toString().replace('.', ',')}</td>
+                        <td className="px-3 py-3 border-x border-[#4d7c71]/20"></td>
+                        <td className="px-3 py-3 border-x border-[#4d7c71]/20 text-center text-[#4d7c71] dark:text-white">{totalArmarBand.toString().replace('.', ',')}</td>
+                        <td className="px-3 py-3 border-x border-[#4d7c71]/20"></td>
+                        <td className="px-3 py-3 border-x border-[#4d7c71]/20 text-center text-[#4d7c71] dark:text-white">{totalBateasPArmar.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 6 })}</td>
+                        <td className="px-3 py-3 border-x border-[#4d7c71]/20"></td>
+                        <td className="px-3 py-3 border-x border-[#4d7c71]/20"></td>
+                        <td colSpan={5} className="bg-slate-100/30 dark:bg-slate-800/20"></td>
+                      </tr>
+                    )}
+                    {parsedData.length === 0 && (
+                      <tr>
+                        <td colSpan={13} className="p-20 text-center opacity-30">
+                          <p className="text-sm font-bold uppercase tracking-[0.2em] italic">Pegue los datos para generar el desglose</p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
            </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -8,16 +8,21 @@ import {
   History,
   Monitor,
   Calculator,
+  ChevronLeft,
 } from 'lucide-react';
+import { ConversorPage } from '../pages/ConversorPage';
 
 interface LayoutProps {
   children: React.ReactNode;
   currentPage: string;
   onNavigate: (page: string) => void;
+  showConversor?: boolean;
+  setShowConversor?: (show: boolean) => void;
 }
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [conversorOpen, setConversorOpen] = useState(false);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -25,14 +30,24 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'production', label: 'Producción', icon: Package },
     { id: 'history', label: 'Historial', icon: History },
     { id: 'plant-screen', label: 'Pantalla Planta', icon: Monitor },
-    { id: 'conversor', label: 'Conversor', icon: Calculator },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f1115] transition-colors duration-300">
       <nav className="bg-white dark:bg-[#1a1c23] shadow-sm border-b border-gray-200 dark:border-white/5 transition-colors duration-300 relative z-50">
         <div className="w-full relative px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto">
+          {/* Conversor Sticky Button - Far Left */}
+          <div className="absolute left-0 top-0 h-16 flex items-center pr-4">
+            <button
+              onClick={() => setConversorOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white p-3 pr-4 rounded-r-2xl shadow-lg shadow-blue-500/20 transition-all flex items-center space-x-2 group"
+            >
+              <Calculator className="w-5 h-5" />
+              <span className="font-bold text-xs uppercase tracking-widest hidden lg:inline">Conversor</span>
+            </button>
+          </div>
+
+          <div className="max-w-7xl mx-auto pl-12 sm:pl-0">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-3 pr-2">
@@ -46,7 +61,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
               {/* Main Navigation - Limited by max-w-7xl */}
               <div className="hidden md:flex items-center space-x-1">
-                {menuItems.filter(item => item.id !== 'conversor').map((item) => {
+                {menuItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = currentPage === item.id;
                   return (
@@ -75,19 +90,6 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           {/* Right Side Elements - UNLIMITED by max-w-7xl */}
           <div className="absolute right-4 sm:right-6 lg:right-8 top-0 h-16 flex items-center space-x-4">
             <div className="hidden md:flex items-center">
-              {menuItems.filter(item => item.id === 'conversor').map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => onNavigate(item.id)}
-                    className="flex items-center space-x-2 px-4 py-2.5 rounded-xl font-bold transition-all border-2 border-blue-100 dark:border-blue-900/30 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 shadow-sm shadow-blue-500/10"
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
             </div>
 
             <button
@@ -102,13 +104,48 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
       </nav>
 
-      {/* Backdrop para oscurecer el fondo */}
+      {/* Backdrop for mobile menu */}
       <div 
         className={`md:hidden fixed inset-0 top-16 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300 ${
           menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setMenuOpen(false)}
       />
+
+      {/* Conversor Side Drawer */}
+      <div 
+        className={`fixed inset-0 z-[100] transition-opacity duration-300 ${
+          conversorOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConversorOpen(false)} />
+        <div 
+          className={`absolute top-0 left-0 bottom-0 w-full md:w-[80%] lg:w-[70%] bg-[#fafafa] dark:bg-[#0f1115] shadow-2xl transform transition-transform duration-500 ease-out border-r border-gray-200 dark:border-white/5 overflow-hidden flex flex-col ${
+            conversorOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="p-4 bg-white dark:bg-[#1a1c23] border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-600 rounded-lg">
+                <Calculator className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">Conversor de Datos</h2>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Herramienta de Análisis</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setConversorOpen(false)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full text-gray-500 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
+            <ConversorPage />
+          </div>
+        </div>
+      </div>
 
       {/* Cajón lateral (Drawer) desde la derecha */}
       <div 
