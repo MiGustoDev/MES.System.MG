@@ -24,6 +24,7 @@ export function ProductionPage() {
   const [dayStatus, setDayStatus] = useState<'pending' | 'started' | 'closed'>('pending');
   const [confirmModal, setConfirmModal] = useState<{ show: boolean; title: string; message: string; action: () => void } | null>(null);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [expandedObservations, setExpandedObservations] = useState<Record<string, boolean>>({});
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -94,6 +95,10 @@ export function ProductionPage() {
     setProduction(production.map(p => p.id === id ? { ...p, planned: value } : p));
   };
 
+  const updateObservations = (id: string, value: string) => {
+    setProduction(production.map(p => p.id === id ? { ...p, observations: value } : p));
+  };
+
   const saveProduction = async () => {
     setSaving(true);
     try {
@@ -106,6 +111,7 @@ export function ProductionPage() {
         shift_type: p.shift_type,
         planned: p.planned,
         produced: Number.isFinite(p.produced) ? p.produced : 0,
+        observations: p.observations || null,
         machine: p.machine || null,
       }));
 
@@ -170,6 +176,7 @@ export function ProductionPage() {
         shift_type: selectedShift,
         planned: row.planned_kg,
         produced: 0,
+        observations: row.observations || null,
         machine: row.machine || null,
       }));
 
@@ -205,6 +212,7 @@ export function ProductionPage() {
           difference: diff,
           status: calculateStatus(diff),
           shift_type: selectedShift,
+          observations: p.observations || null,
           machine: p.machine || null,
         };
       });
@@ -439,10 +447,30 @@ export function ProductionPage() {
                             <div className="flex items-center gap-2">
                               <Package className="w-3.5 h-3.5 text-blue-500 opacity-50 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
-                                <p className="text-[13px] font-black text-gray-900 dark:text-white uppercase tracking-tight truncate">{row.product}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-[13px] font-black text-gray-900 dark:text-white uppercase tracking-tight truncate">{row.product}</p>
+                                  <button 
+                                    onClick={() => setExpandedObservations(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
+                                    className={`p-1 rounded transition-colors ${row.observations ? 'text-amber-500 bg-amber-500/10' : 'text-gray-400'}`}
+                                  >
+                                    <FileText className="w-3 h-3" />
+                                  </button>
+                                </div>
                                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Plan: {formatNumber(row.planned, 1)}</p>
                               </div>
                             </div>
+                            
+                            {(expandedObservations[row.id] || row.observations) && (
+                              <div className="mt-2 pt-2 border-t border-gray-100 dark:border-white/5">
+                                <input 
+                                  type="text"
+                                  placeholder="Observación..."
+                                  value={row.observations || ''}
+                                  onChange={(e) => updateObservations(row.id, e.target.value)}
+                                  className="w-full bg-transparent text-[10px] font-bold text-gray-500 dark:text-gray-400 focus:outline-none focus:text-blue-500"
+                                />
+                              </div>
+                            )}
                           </div>
 
                           <div className="w-28 relative group/input">
@@ -491,6 +519,7 @@ export function ProductionPage() {
                 <th className="px-8 py-5 text-right text-[11px] font-black text-gray-400 uppercase tracking-widest">Plan ({selectedShift})</th>
                 <th className="px-8 py-5 text-right text-[11px] font-black text-gray-400 uppercase tracking-widest">Producido ({SECTOR_UNITS[selectedSector]})</th>
                 <th className="px-8 py-5 text-right text-[11px] font-black text-gray-400 uppercase tracking-widest">Diferencia</th>
+                <th className="px-8 py-5 text-center text-[11px] font-black text-gray-400 uppercase tracking-widest">Observaciones</th>
                 <th className="px-8 py-5 text-center text-[11px] font-black text-gray-400 uppercase tracking-widest">Estado</th>
               </tr>
             </thead>
@@ -565,6 +594,15 @@ export function ProductionPage() {
                       }`}>
                         {difference >= 0 ? '+' : ''}{formatNumber(difference, 1)}
                       </p>
+                    </td>
+                    <td className="px-4 py-5 min-w-[200px]">
+                       <input
+                        type="text"
+                        placeholder="Sin observaciones..."
+                        value={row.observations || ''}
+                        onChange={(e) => updateObservations(row.id, e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs font-bold bg-transparent border-b border-transparent focus:border-gray-200 dark:focus:border-white/10 text-gray-600 dark:text-gray-400 outline-none transition-all"
+                      />
                     </td>
                     <td className="px-8 py-5 text-center">
                       <span className={`inline-flex px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${

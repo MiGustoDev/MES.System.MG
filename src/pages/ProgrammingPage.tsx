@@ -24,6 +24,7 @@ export function ProgrammingPage() {
     machineName: null,
   });
   const [converterResults, setConverterResults] = useState<Record<string, number>>({});
+  const [expandedObservations, setExpandedObservations] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 40);
@@ -220,6 +221,7 @@ export function ProgrammingPage() {
           product: p.product,
           shift_type: p.shift_type ?? 'Mañana',
           planned_kg: Number.isFinite(p.planned_kg) ? p.planned_kg : 0,
+          observations: p.observations || null,
           machine: p.machine || null,
         }));
 
@@ -957,11 +959,32 @@ export function ProgrammingPage() {
                     return (
                       <div key={row.id} className="group flex items-center justify-between bg-white dark:bg-white/[0.03] hover:bg-gray-50 dark:hover:bg-white/[0.08] p-4 sm:p-5 transition-all duration-300 border border-gray-100 dark:border-white/5 rounded-3xl shadow-sm hover:shadow-xl">
                         {/* Left: Product Info */}
-                        <div className="flex items-center gap-4 sm:gap-6">
-                           <div className="flex flex-col min-w-[70px] sm:min-w-[90px]">
-                            <p className="text-[9px] font-black text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-0.5">{row.shift_type || 'MAÑANA'}</p>
-                            <h4 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tighter uppercase leading-none">{row.product}</h4>
+                        <div className="flex flex-col gap-2 min-w-0">
+                          <div className="flex items-center gap-3">
+                            <div className="flex flex-col">
+                              <p className="text-[9px] font-black text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-0.5">{row.shift_type || 'MAÑANA'}</p>
+                              <h4 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tighter uppercase leading-none">{row.product}</h4>
+                            </div>
+                            <button 
+                              onClick={() => setExpandedObservations(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
+                              className={`p-1.5 rounded-lg transition-all ${row.observations ? 'bg-amber-500/10 text-amber-500' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
                           </div>
+                          
+                          {(expandedObservations[row.id] || row.observations) && (
+                            <div className="max-w-[200px] sm:max-w-[300px]">
+                              <input 
+                                type="text"
+                                placeholder="Observaciones..."
+                                value={row.observations || ''}
+                                onChange={(e) => updateRow(row.id, 'observations', e.target.value)}
+                                className="w-full bg-gray-100/50 dark:bg-black/20 border-b border-gray-200 dark:border-white/5 px-2 py-1 text-[11px] font-bold text-gray-600 dark:text-gray-400 focus:outline-none focus:border-blue-500 transition-all rounded"
+                                autoFocus={expandedObservations[row.id] && !row.observations}
+                              />
+                            </div>
+                          )}
                         </div>
 
                         {/* Right: Data & Input unit - Tightened */}
