@@ -54,7 +54,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-3 pr-2">
-                <img src="logo.png" alt="Logo" className="h-10 w-auto object-contain" />
+                <img src="/fabrica/MES/logo.png" alt="Logo" className="h-10 w-auto object-contain" />
               </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900 dark:text-white">Sistema MES</h1>

@@ -4,9 +4,9 @@ import { useAuth } from '../contexts/AuthContext';
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,20 +27,18 @@ export function Login() {
     setLoading(true);
 
     try {
+      const finalEmail = email.includes('@') ? email : `${email}@migusto.com.ar`;
+
       if (isResetting) {
-        await resetPassword(email);
+        await resetPassword(finalEmail);
         setMessage('Si el email existe, recibirás instrucciones para recuperar tu contraseña.');
-      } else if (isSignUp) {
-        await signUp(email, password);
-        setMessage('Cuenta creada. Por favor inicia sesión.');
-        setIsSignUp(false);
       } else {
         if (rememberMe) {
           localStorage.setItem('rememberedEmail', email);
         } else {
           localStorage.removeItem('rememberedEmail');
         }
-        await signIn(email, password);
+        await signIn(finalEmail, password);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de autenticación');
@@ -53,7 +51,7 @@ export function Login() {
     <div className="min-h-screen bg-gradient-to-br from-[#0f1115] via-[#1a1c23] to-[#0f1115] flex items-center justify-center p-4 transition-all duration-500">
       <div className="bg-white dark:bg-[#1a1c23] backdrop-blur-xl border border-white/5 rounded-3xl shadow-2xl w-full max-w-md p-10 transition-all duration-300">
         <div className="flex items-center justify-center mb-8">
-          <img src="/logo.png" alt="Logo" className="h-20 w-auto object-contain" />
+          <img src="/fabrica/MES/logo.png" alt="Logo" className="h-20 w-auto object-contain" />
         </div>
 
         <h1 className="text-4xl font-black text-center text-gray-900 dark:text-white mb-2 tracking-tight">
@@ -63,18 +61,20 @@ export function Login() {
           Gestión de Producción Industrial
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} action="#" method="POST" className="space-y-6">
           <div>
             <label htmlFor="email" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1">
-              Usuario / Email
+              Usuario
             </label>
             <input
               id="email"
-              type="email"
+              name="username"
+              type="text"
+              autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
-              placeholder="operador@fabrica.com"
+              placeholder="Ingrese su usuario"
               required
             />
           </div>
@@ -84,19 +84,47 @@ export function Login() {
               <label htmlFor="password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1">
                 Contraseña
               </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                placeholder="••••••••"
-                required
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                  placeholder="Ingrese su contraseña"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-all duration-300"
+                >
+                  {showPassword ? (
+                    /* Ojo Abierto con pestañas arriba */
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-in fade-in zoom-in duration-300">
+                      <path d="M2 12s4-8 10-8 10 8 10 8" />
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M12 4V2" />
+                      <path d="M17 5l1.5-1.5" />
+                      <path d="M7 5L5.5 3.5" />
+                    </svg>
+                  ) : (
+                    /* Ojo Cerrado con pestañas abajo */
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-in fade-in zoom-in duration-300">
+                      <path d="M2 10c3 5 17 5 20 0" />
+                      <path d="M12 14v2" />
+                      <path d="M17 13l1.5 1.5" />
+                      <path d="M7 13l-1.5 1.5" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
           )}
 
-          {!isResetting && !isSignUp && (
+          {!isResetting && (
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <input
@@ -145,23 +173,12 @@ export function Login() {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Procesando...' : isResetting ? 'Recuperar contraseña' : isSignUp ? 'Crear cuenta' : 'Iniciar sesión'}
+            {loading ? 'Procesando...' : isResetting ? 'Recuperar contraseña' : 'Iniciar sesión'}
           </button>
         </form>
 
         <div className="mt-6 text-center space-y-4">
-          {!isResetting && (
-            <button
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError('');
-                setMessage('');
-              }}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-bold transition-colors"
-            >
-              {isSignUp ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
-            </button>
-          )}
+          {/* Registro eliminado por petición del usuario */}
 
           {isResetting && (
             <button
