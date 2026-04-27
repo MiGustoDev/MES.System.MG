@@ -63,7 +63,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               </div>
 
               {/* Main Navigation - Limited by max-w-7xl */}
-              <div className="hidden md:flex items-center space-x-1">
+              <div className="hidden lg:flex items-center space-x-1">
                 {menuItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = currentPage === item.id;
@@ -86,14 +86,14 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
               {/* Mobile Menu Button - Also moved to absolute for consistency if preferred, 
                   but here we keep a placeholder for spacing or just leave empty if it's absolute below */}
-              <div className="md:hidden w-10 h-10" />
+              <div className="lg:hidden w-10 h-10" />
             </div>
           </div>
 
           {/* Right Side Elements - UNLIMITED by max-w-7xl */}
           <div className="absolute right-4 sm:right-6 lg:right-8 top-0 h-16 flex items-center space-x-4">
             {user && (
-              <div className="hidden md:flex items-center space-x-4">
+              <div className="hidden lg:flex items-center space-x-4">
                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                   {user.email}
                 </span>
@@ -109,7 +109,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300 relative w-10 h-10 flex items-center justify-center overflow-hidden"
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300 relative w-10 h-10 flex items-center justify-center overflow-hidden"
             >
               <Menu className={`w-6 h-6 absolute transition-all duration-300 ease-in-out ${menuOpen ? 'scale-0 opacity-0 rotate-90' : 'scale-100 opacity-100 rotate-0'}`} />
               <X className={`w-6 h-6 absolute transition-all duration-300 ease-in-out ${menuOpen ? 'scale-100 opacity-100 rotate-0' : 'scale-0 opacity-0 -rotate-90'}`} />
@@ -121,7 +121,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
       {/* Backdrop for mobile menu */}
       <div 
-        className={`md:hidden fixed inset-0 top-16 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300 ${
+        className={`lg:hidden fixed inset-0 top-16 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300 ${
           menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setMenuOpen(false)}
@@ -164,7 +164,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
       {/* Cajón lateral (Drawer) desde la derecha */}
       <div 
-        className={`md:hidden fixed top-16 right-0 bottom-0 w-[280px] bg-white dark:bg-[#1a1c23] shadow-2xl z-50 transform transition-transform duration-300 ease-out border-l border-gray-200 dark:border-white/5 ${
+        className={`lg:hidden fixed top-16 right-0 bottom-0 w-[280px] bg-white dark:bg-[#1a1c23] shadow-2xl z-50 transform transition-transform duration-300 ease-out border-l border-gray-200 dark:border-white/5 ${
           menuOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >

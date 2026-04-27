@@ -309,8 +309,8 @@ export function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-        <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 min-h-[200px] transition-all duration-300 relative overflow-hidden flex flex-col justify-between">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 min-h-[160px] md:min-h-[200px] transition-all duration-300 relative overflow-hidden flex flex-col justify-between">
           <div className="mb-4">
             <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Plan Total</p>
             <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mt-1">
@@ -323,7 +323,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 min-h-[200px] transition-all duration-300 relative overflow-hidden flex flex-col justify-between">
+        <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 min-h-[160px] md:min-h-[200px] transition-all duration-300 relative overflow-hidden flex flex-col justify-between">
           <div className="mb-4">
             <p className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center justify-between w-full">
               Producción Total
@@ -339,7 +339,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 min-h-[200px] transition-all duration-300 relative overflow-hidden flex flex-col justify-between">
+        <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 min-h-[160px] md:min-h-[200px] transition-all duration-300 relative overflow-hidden flex flex-col justify-between">
           <div className="mb-4">
             <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Producción Salsas</p>
             <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mt-1">
@@ -352,7 +352,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 min-h-[200px] transition-all duration-300 relative overflow-hidden flex flex-col justify-between">
+        <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 min-h-[160px] md:min-h-[200px] transition-all duration-300 relative overflow-hidden flex flex-col justify-between">
           <div className="space-y-2 sm:space-y-4">
             <div>
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Cumplimiento</p>
@@ -374,7 +374,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 transition-all duration-500 hover:shadow-lg dark:hover:shadow-blue-500/5 group/card">
           <div 
             className="flex items-center justify-between mb-6 cursor-pointer lg:cursor-default select-none"
@@ -464,7 +464,7 @@ export function DashboardPage() {
         Análisis Avanzado de Planta
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 1. Radar Chart - Comparativa de Sectores */}
         <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-6 transition-all duration-300">
           <div className="flex items-center justify-between mb-2">

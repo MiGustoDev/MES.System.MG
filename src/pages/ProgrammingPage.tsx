@@ -694,7 +694,7 @@ export function ProgrammingPage() {
                   </div>
                 </div>
 
-                <div className={`fixed ${isScrolled ? 'top-0' : 'top-[64px]'} bottom-0 right-0 z-40 transform transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${showExcelPanel ? 'translate-x-0 w-full md:w-[450px]' : 'translate-x-[calc(100%-85px)] md:translate-x-[calc(100%-150px)] w-[85px] md:w-[150px]'}`}>
+                <div className={`fixed ${isScrolled ? 'top-0' : 'top-[64px]'} bottom-0 right-0 z-40 transform transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${showExcelPanel ? 'translate-x-0 w-full md:w-[320px] lg:w-[450px]' : 'translate-x-[calc(100%-85px)] md:translate-x-[calc(100%-120px)] w-[85px] md:w-[120px]'}`}>
                   {!showExcelPanel && (
                     <button onClick={() => setShowExcelPanel(true)} className="absolute inset-y-0 left-0 w-full flex flex-col bg-blue-600 dark:bg-[#1a1c23] backdrop-blur-md transition-colors cursor-pointer group/peek border-l border-white/10 shadow-[-20px_0_60px_rgba(0,0,0,0.5)]">
                       <div className="p-3 md:p-5 bg-blue-700/50 w-full flex items-center justify-center md:justify-between border-b border-white/10">

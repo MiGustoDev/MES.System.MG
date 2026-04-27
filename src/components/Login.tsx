@@ -49,12 +49,12 @@ export function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f1115] via-[#1a1c23] to-[#0f1115] flex items-center justify-center p-4 transition-all duration-500">
-      <div className="bg-white dark:bg-[#1a1c23] backdrop-blur-xl border border-white/5 rounded-3xl shadow-2xl w-full max-w-md p-10 transition-all duration-300">
-        <div className="flex items-center justify-center mb-8">
-          <img src="/fabrica/MES/logo.png" alt="Logo" className="h-20 w-auto object-contain" />
+      <div className="bg-white dark:bg-[#1a1c23] backdrop-blur-xl border border-white/5 rounded-3xl shadow-2xl w-full max-w-md md:max-w-lg lg:max-w-md p-10 md:p-16 transition-all duration-300">
+        <div className="flex items-center justify-center mb-10">
+          <img src="/fabrica/MES/logo.png" alt="Logo" className="h-20 md:h-28 lg:h-20 w-auto object-contain" />
         </div>
 
-        <h1 className="text-4xl font-black text-center text-gray-900 dark:text-white mb-2 tracking-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-4xl font-black text-center text-gray-900 dark:text-white mb-2 tracking-tight">
           Sistema MES
         </h1>
         <p className="text-center text-gray-600 dark:text-gray-400 mb-10 font-medium">
@@ -73,7 +73,7 @@ export function Login() {
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
+              className="w-full px-4 py-3 md:py-4 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600 md:text-lg lg:text-base"
               placeholder="Ingrese su usuario"
               required
             />
@@ -92,7 +92,7 @@ export function Login() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                  className="w-full px-4 py-3 md:py-4 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600 md:text-lg lg:text-base"
                   placeholder="Ingrese su contraseña"
                   required
                 />
@@ -171,7 +171,7 @@ export function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 md:py-5 rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed md:text-lg lg:text-base"
           >
             {loading ? 'Procesando...' : isResetting ? 'Recuperar contraseña' : 'Iniciar sesión'}
           </button>
