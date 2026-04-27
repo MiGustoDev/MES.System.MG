@@ -9,8 +9,10 @@ import {
   Monitor,
   Calculator,
   ChevronLeft,
+  LogOut,
 } from 'lucide-react';
 import { ConversorPage } from '../pages/ConversorPage';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,6 +25,7 @@ interface LayoutProps {
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [conversorOpen, setConversorOpen] = useState(false);
+  const { signOut, user } = useAuth();
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -89,8 +92,20 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
           {/* Right Side Elements - UNLIMITED by max-w-7xl */}
           <div className="absolute right-4 sm:right-6 lg:right-8 top-0 h-16 flex items-center space-x-4">
-            <div className="hidden md:flex items-center">
-            </div>
+            {user && (
+              <div className="hidden md:flex items-center space-x-4">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {user.email}
+                </span>
+                <button
+                  onClick={() => signOut()}
+                  className="p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
+                  title="Cerrar sesión"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            )}
 
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -175,6 +190,15 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               </button>
             );
           })}
+          {user && (
+            <button
+              onClick={() => signOut()}
+              className="w-full flex items-center space-x-3 px-4 py-3.5 rounded-xl font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all mt-4 border-t border-gray-100 dark:border-white/5 pt-6"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>Cerrar sesión</span>
+            </button>
+          )}
         </div>
       </div>
 
