@@ -21,6 +21,7 @@ export function ProgrammingPage() {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; machineName: string | null }>({
+    isOpen: false,
     machineName: null,
   });
   const [converterResults, setConverterResults] = useState<Record<string, number>>({});

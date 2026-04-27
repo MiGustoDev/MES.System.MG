@@ -1,25 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setMessage('');
     setLoading(true);
 
     try {
-      if (isSignUp) {
+      if (isResetting) {
+        await resetPassword(email);
+        setMessage('Si el email existe, recibirás instrucciones para recuperar tu contraseña.');
+      } else if (isSignUp) {
         await signUp(email, password);
-        setError('Cuenta creada. Por favor inicia sesión.');
+        setMessage('Cuenta creada. Por favor inicia sesión.');
         setIsSignUp(false);
       } else {
+        if (rememberMe) {
+          localStorage.setItem('rememberedEmail', email);
+        } else {
+          localStorage.removeItem('rememberedEmail');
+        }
         await signIn(email, password);
       }
     } catch (err) {
@@ -46,7 +66,7 @@ export function Login() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="email" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1">
-              Email
+              Usuario / Email
             </label>
             <input
               id="email"
@@ -59,26 +79,64 @@ export function Login() {
             />
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1">
-              Contraseña
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
-              placeholder="••••••••"
-              required
-            />
-          </div>
+          {!isResetting && (
+            <div>
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1">
+                Contraseña
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+          )}
+
+          {!isResetting && !isSignUp && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-white/10 rounded dark:bg-black/20"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                  Recordar contraseña
+                </label>
+              </div>
+
+              <div className="text-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsResetting(true);
+                    setError('');
+                    setMessage('');
+                  }}
+                  className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
+            </div>
+          )}
 
           {error && (
-            <div className={`p-3 rounded-lg text-sm ${
-              error.includes('creada') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-            }`}>
+            <div className="p-3 rounded-lg text-sm bg-red-50 text-red-700">
               {error}
+            </div>
+          )}
+
+          {message && (
+            <div className="p-3 rounded-lg text-sm bg-green-50 text-green-700">
+              {message}
             </div>
           )}
 
@@ -87,20 +145,36 @@ export function Login() {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Procesando...' : isSignUp ? 'Crear cuenta' : 'Iniciar sesión'}
+            {loading ? 'Procesando...' : isResetting ? 'Recuperar contraseña' : isSignUp ? 'Crear cuenta' : 'Iniciar sesión'}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setError('');
-            }}
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-bold transition-colors"
-          >
-            {isSignUp ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
-          </button>
+        <div className="mt-6 text-center space-y-4">
+          {!isResetting && (
+            <button
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError('');
+                setMessage('');
+              }}
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-bold transition-colors"
+            >
+              {isSignUp ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
+            </button>
+          )}
+
+          {isResetting && (
+            <button
+              onClick={() => {
+                setIsResetting(false);
+                setError('');
+                setMessage('');
+              }}
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-sm font-bold transition-colors block w-full"
+            >
+              Volver al inicio de sesión
+            </button>
+          )}
         </div>
       </div>
     </div>
