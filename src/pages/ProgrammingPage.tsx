@@ -1,14 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { Programming, SECTOR_PRODUCTS, SECTORS, SHIFT_TYPES, Sector, ShiftType } from '../types';
-import { Calendar, Copy, Save, RefreshCw, Plus, Trash2, TrendingUp, Pencil, Check, Package, FileText, ClipboardList, X } from 'lucide-react';
+import { Calendar, Copy, Save, RefreshCw, Plus, Trash2, TrendingUp, Pencil, Check, Package, FileText, ClipboardList, X, Eye, Lock } from 'lucide-react';
 import { CalendarDropdown } from '../components/CalendarDropdown';
+import { NumericInput } from '../components/NumericInput';
 
 export function ProgrammingPage() {
+  const { canEditProgramming, role } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSector, setSelectedSector] = useState<Sector>(SECTORS[0]);
   const [selectedShift, setSelectedShift] = useState<ShiftType>(SHIFT_TYPES[0]);
   const [programming, setProgramming] = useState<Programming[]>([]);
+  
+  const hasEditPermission = canEditProgramming(selectedSector);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -24,7 +29,7 @@ export function ProgrammingPage() {
     isOpen: false,
     machineName: null,
   });
-  const [converterResults, setConverterResults] = useState<Record<string, number>>({});
+  const [converterResults, setConverterResults] = useState<Record<string, { armarBand: number; carnes: string | number; bateas: number; cocciones: number }>>({});
   const [expandedObservations, setExpandedObservations] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -39,13 +44,69 @@ export function ProgrammingPage() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          const map: Record<string, number> = {};
+          const map: Record<string, { armarBand: number; carnes: string | number; bateas: number; cocciones: number }> = {};
+          
+          // Mapa para acumular los kg de carne por tipo de carne (para Mesa de Carnes)
+          const meatAccumulator: Record<string, number> = {};
+
+          const parseCarnesValue = (val: any) => {
+            if (!val) return 0;
+            if (typeof val === 'number') return val;
+            const strVal = String(val);
+            if (strVal.includes('+')) {
+              return strVal.split('+').reduce((acc, part) => acc + (parseFloat(part.trim().replace(',', '.')) || 0), 0);
+            }
+            return parseFloat(strVal.replace(',', '.')) || 0;
+          };
+
+          const MEAT_DISTRIBUTION: Record<string, Record<string, number>> = {
+            'CS': { 'ROAST BEEF': 1 },
+            'CA': { 'ROAST BEEF': 1 },
+            'CP': { 'ROAST BEEF': 1 },
+            'CC': { 'ROAST BEEF': 0.5, 'PALETA DE VACA': 0.5 },
+            'VP': { 'VACIO': 0.7, 'TAPA DE ASADO': 0.3 },
+            'MPP': { 'PALETA DE CERDO': 0.5, 'BONDIOLA DE CERDO': 0.5 },
+            'PO': { 'POLLO': 1 },
+            'AC': { 'POLLO': 1 },
+            'PC': { 'POLLO': 1 },
+          };
+
           parsed.forEach((row: any) => {
-            const key = (row.product || row.gusto || '').trim();
-            if (key) {
-              map[key] = row.armarBand;
+            const productKey = (row.product || row.gusto || '').trim().toUpperCase();
+            if (!productKey) return;
+
+            // Lógica original para Armado y Picadillo
+            map[productKey] = {
+              armarBand: row.armarBand || 0,
+              carnes: row.carnes ?? 0,
+              bateas: row.bateas2Config || 0,
+              cocciones: row.coccion || 0
+            };
+
+            // Nueva lógica de distribución para Mesa de Carnes
+            const coccion = row.coccion || 0;
+            const unitCarnes = parseCarnesValue(row.carnes);
+            const totalKg = coccion * unitCarnes;
+
+            if (totalKg > 0) {
+              const distribution = MEAT_DISTRIBUTION[productKey];
+              if (distribution) {
+                Object.entries(distribution).forEach(([meat, percentage]) => {
+                  meatAccumulator[meat] = (meatAccumulator[meat] || 0) + (totalKg * percentage);
+                });
+              }
             }
           });
+
+          // Agregar los totales acumulados de carne al mapa principal
+          Object.entries(meatAccumulator).forEach(([meat, total]) => {
+            if (map[meat]) {
+              map[meat].carnes = total;
+            } else {
+              map[meat] = { armarBand: 0, carnes: total, bateas: 0, cocciones: 0 };
+            }
+          });
+
           setConverterResults(map);
         } catch (e) {
           console.error('Error parsing converter results:', e);
@@ -136,20 +197,18 @@ export function ProgrammingPage() {
         return existing ?? defaultRow;
       });
 
-      // For Armado, we might have extra rows (machines) that are not in defaultRows
-      if (selectedSector === 'Armado') {
-        const extraRows = (data as any[])
-          .filter(row => row.sector === 'Armado' && row.machine)
-          .map(row => row as Programming);
-        
-        // Combine keeping existing if they were already in rows (to avoid duplicates)
-        const rowIds = new Set(rows.map(r => r.id));
-        extraRows.forEach(extra => {
-          if (!rowIds.has(extra.id)) {
-            rows.push(extra);
-          }
-        });
-      }
+      // Add Armado machine rows regardless of selected sector to prevent data loss on save
+      const extraRows = (data as any[])
+        .filter(row => row.sector === 'Armado' && row.machine)
+        .map(row => row as Programming);
+      
+      // Combine keeping existing if they were already in rows (to avoid duplicates)
+      const rowIds = new Set(rows.map(r => r.id));
+      extraRows.forEach(extra => {
+        if (!rowIds.has(extra.id)) {
+          rows.push(extra);
+        }
+      });
 
       setProgramming(rows as Programming[]);
     } catch (error) {
@@ -169,11 +228,36 @@ export function ProgrammingPage() {
     setProgramming(programming.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const currentInput = e.target as HTMLInputElement;
+      
+      // Intentar encontrar el siguiente input en la misma columna/posición
+      const allInputs = Array.from(document.querySelectorAll('input[inputmode="decimal"]'));
+      const currentIndex = allInputs.indexOf(currentInput);
+      
+      if (currentIndex !== -1 && currentIndex < allInputs.length - 1) {
+        const nextInput = allInputs[currentIndex + 1] as HTMLInputElement;
+        nextInput.focus();
+        nextInput.select();
+      }
+    }
+  };
+
   const updateMachineName = (oldName: string, newName: string) => {
     setMachineNames(machineNames.map(m => m === oldName ? newName : m));
     setProgramming(programming.map(p => 
       (p.sector === 'Armado' && p.machine === oldName) 
         ? { ...p, machine: newName } 
+        : p
+    ));
+  };
+
+  const updateArmadoPersonnel = (machineName: string, field: 'cargador' | 'checker', value: string) => {
+    setProgramming(programming.map(p => 
+      (p.sector === 'Armado' && p.machine === machineName && (p.shift_type ?? 'Mañana') === selectedShift)
+        ? { ...p, [field]: value }
         : p
     ));
   };
@@ -207,24 +291,57 @@ export function ProgrammingPage() {
   const saveProgramming = async () => {
     setSaving(true);
     try {
+      // MEJORA: Solo borramos los datos del Sector y Turno actual para no pisar a otros usuarios
       const { error: deleteError } = await (supabase
         .from('programming') as any)
         .delete()
-        .eq('date', selectedDate);
+        .eq('date', selectedDate)
+        .eq('sector', selectedSector)
+        .eq('shift_type', selectedShift);
 
       if (deleteError) throw deleteError;
 
-      const dataToInsert = programming
-        .filter(p => p.planned_kg > 0)
-        .map(p => ({
-          date: selectedDate,
-          sector: p.sector,
-          product: p.product,
-          shift_type: p.shift_type ?? 'Mañana',
-          planned_kg: Number.isFinite(p.planned_kg) ? p.planned_kg : 0,
-          observations: p.observations || null,
-          machine: p.machine || null,
-        }));
+      const specialProducts = [
+        'HUEVO', 'MUZZARELLA PICADA ARMADO', 'PANCETA FETEADA', 'CHEDDAR PICADO', 
+        'JAMON FETEADO', 'JAMON CUBETEADO', 'PROVOLETA PICADA', 'SARDO PICADO', 
+        'CHEDDAR AC', 'CHEDDAR EB', 'CHEDDAR TONADITA', 'PESADO CH', 'CHERRY', 
+        'PESADO 4Q', 'PESADO RJ', 'BOLLOS JQ',
+        'VACIO LIMPIO', 'VACIO PICADO', 'MATAMBRE SIN PICAR'
+      ];
+
+      // MEJORA: Filtramos para insertar SOLO lo que corresponde a esta vista y tiene carga (o es especial)
+      const rawDataToInsert = programming
+        .filter(p => 
+          p.sector === selectedSector && 
+          (p.shift_type ?? 'Mañana') === selectedShift &&
+          (p.planned_kg > 0 || specialProducts.includes(p.product.toUpperCase()))
+        );
+
+      // MERGE DUPLICATES: If multiple rows have same product and machine, sum their planned_kg
+      const mergedData: Record<string, any> = {};
+      rawDataToInsert.forEach(p => {
+        const key = `${p.product}||${p.machine || ''}`;
+        if (mergedData[key]) {
+          mergedData[key].planned_kg += Number.isFinite(p.planned_kg) ? p.planned_kg : 0;
+          if (p.observations) {
+            mergedData[key].observations = (mergedData[key].observations ? mergedData[key].observations + ' | ' : '') + p.observations;
+          }
+        } else {
+          mergedData[key] = {
+            date: selectedDate,
+            sector: p.sector,
+            product: p.product,
+            shift_type: p.shift_type ?? 'Mañana',
+            planned_kg: Number.isFinite(p.planned_kg) ? p.planned_kg : 0,
+            observations: p.observations || null,
+            machine: p.machine || null,
+            cargador: p.cargador || null,
+            checker: p.checker || null,
+          };
+        }
+      });
+
+      const dataToInsert = Object.values(mergedData);
 
       if (dataToInsert.length > 0) {
         const { error: insertError } = await (supabase
@@ -346,31 +463,57 @@ export function ProgrammingPage() {
     });
   };
 
-  // if (loading) {
-  //   return (
-  //     <div className="flex items-center justify-center h-64">
-  //       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-  //     </div>
-  //   );
-  // }
-
   const visibleProgramming = programming.filter(
     (row) => 
       row.sector === selectedSector && 
       (row.shift_type ?? 'Mañana') === selectedShift
   );
 
-  // Filtros de programación para el sector Armado
-  // dailyArmadoProgramming se usa para el HUD (Objetivo Diario compartido entre todos los turnos)
-  const dailyArmadoProgramming = programming.filter(p => p.sector === 'Armado');
-  
-  // currentShiftArmado se usa para renderizar las tarjetas de máquinas del turno seleccionado
-  const currentShiftArmado = dailyArmadoProgramming.filter(p => (p.shift_type ?? 'Mañana') === selectedShift);
+  const getRefLabel = (sector: Sector) => {
+    switch (sector) {
+      case 'Mesa de Carnes': return 'Ref. Carnes';
+      case 'Picadillo': return 'Ref. Bateas';
+      case 'Cocina': return 'Ref. Bateas';
+      default: return 'Ref. Armar';
+    }
+  };
 
-  const totalsByProduct = dailyArmadoProgramming.reduce((acc, p) => {
+  const getRefValue = (product: string, sector: Sector) => {
+    const specialProducts = [
+      'HUEVO', 'MUZZARELLA PICADA ARMADO', 'PANCETA FETEADA', 'CHEDDAR PICADO', 
+      'JAMON FETEADO', 'JAMON CUBETEADO', 'PROVOLETA PICADA', 'SARDO PICADO', 
+      'CHEDDAR AC', 'CHEDDAR EB', 'CHEDDAR TONADITA', 'PESADO CH', 'CHERRY', 
+      'PESADO 4Q', 'PESADO RJ', 'BOLLOS JQ',
+      'VACIO LIMPIO', 'VACIO PICADO', 'MATAMBRE SIN PICAR'
+    ];
+
+    if (specialProducts.includes(product.toUpperCase())) return '-';
+
+    const refData = converterResults[product.trim().toUpperCase()];
+    if (!refData) return '-';
+    
+    let val: string | number = 0;
+    if (sector === 'Mesa de Carnes') val = refData.carnes;
+    else if (sector === 'Picadillo') val = refData.bateas;
+    else if (sector === 'Cocina') val = refData.bateas;
+    else val = refData.armarBand;
+    
+    const numericVal = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.')) || 0;
+    if (numericVal === 0) return '-';
+    
+    return numericVal.toFixed(1).replace('.', ',');
+  };
+
+  const currentSectorProgramming = programming.filter(p => p.sector === selectedSector);
+  
+  const totalsByProduct = currentSectorProgramming.reduce((acc, p) => {
     acc[p.product] = (acc[p.product] || 0) + (p.planned_kg || 0);
     return acc;
   }, {} as Record<string, number>);
+
+  const dailyArmadoProgramming = programming.filter(p => p.sector === 'Armado');
+  
+  const currentShiftArmado = dailyArmadoProgramming.filter(p => (p.shift_type ?? 'Mañana') === selectedShift);
 
   return (
     <div className={`space-y-6 ${selectedSector === 'Armado' ? '-mx-2 md:mx-0 pr-[85px] md:pr-0' : ''} relative`}>
@@ -379,7 +522,6 @@ export function ProgrammingPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
       )}
-      {/* Modern Confirmation Modal with Smooth Transitions */}
       <div className={`fixed inset-0 w-screen h-screen z-[9999] flex items-center justify-center p-4 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${confirmModal.isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none delay-100'}`}>
         <div 
           className={`absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity duration-500 ${confirmModal.isOpen ? 'opacity-100' : 'opacity-0'}`}
@@ -440,49 +582,57 @@ export function ProgrammingPage() {
           <p className="text-gray-600 dark:text-gray-400 mt-1 transition-colors duration-300">Gestiona el plan de producción global</p>
           
           <div className="flex flex-row justify-between gap-3 mt-6 w-full lg:hidden">
-             <button
-                onClick={copyFromPreviousDay}
-                disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 py-3 px-1 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all font-bold shadow-lg shadow-purple-600/20"
-              >
-                <Copy className="w-4 h-4 flex-shrink-0" />
-                <span className="text-[9px] uppercase tracking-widest text-left leading-tight">
-                  <span className="block">Copiar Día</span>
-                  <span className="block">Anterior</span>
-                </span>
-              </button>
-              
-              <button
-                onClick={saveProgramming}
-                disabled={saving || programming.length === 0}
-                className="flex-1 flex items-center justify-center gap-2 py-3 px-1 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-600/30"
-              >
-                <Save className="w-4 h-4 flex-shrink-0" />
-                <span className="text-[9px] uppercase tracking-widest text-left leading-tight">
-                  <span className="block">Guardar</span>
-                  <span className="block">Programación</span>
-                </span>
-              </button>
+             {hasEditPermission && (
+               <>
+                 <button
+                    onClick={copyFromPreviousDay}
+                    disabled={loading}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 px-1 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all font-bold shadow-lg shadow-purple-600/20"
+                  >
+                    <Copy className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-[9px] uppercase tracking-widest text-left leading-tight">
+                      <span className="block">Copiar Día</span>
+                      <span className="block">Anterior</span>
+                    </span>
+                  </button>
+                  
+                  <button
+                    onClick={saveProgramming}
+                    disabled={saving || programming.length === 0}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 px-1 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-600/30"
+                  >
+                    <Save className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-[9px] uppercase tracking-widest text-left leading-tight">
+                      <span className="block">Guardar</span>
+                      <span className="block">Programación</span>
+                    </span>
+                  </button>
+               </>
+             )}
           </div>
 
           <div className="hidden lg:flex flex-col gap-3 mt-6 w-full sm:w-fit">
-             <button
-                onClick={copyFromPreviousDay}
-                disabled={loading}
-                className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-purple-600/20 w-full"
-              >
-                <Copy className="w-4 h-4" />
-                <span>Copiar Día Anterior</span>
-              </button>
-              
-              <button
-                onClick={saveProgramming}
-                disabled={saving || programming.length === 0}
-                className="flex items-center justify-center space-x-2 px-8 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-600/30 text-xs uppercase tracking-widest w-full"
-              >
-                <Save className="w-5 h-5 flex-shrink-0" />
-                <span>Guardar Programación</span>
-              </button>
+             {hasEditPermission && (
+               <>
+                 <button
+                    onClick={copyFromPreviousDay}
+                    disabled={loading}
+                    className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-purple-600/20 w-full"
+                  >
+                    <Copy className="w-4 h-4" />
+                    <span>Copiar Día Anterior</span>
+                  </button>
+                  
+                  <button
+                    onClick={saveProgramming}
+                    disabled={saving || programming.length === 0}
+                    className="flex items-center justify-center space-x-2 px-8 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-600/30 text-xs uppercase tracking-widest w-full"
+                  >
+                    <Save className="w-5 h-5 flex-shrink-0" />
+                    <span>Guardar Programación</span>
+                  </button>
+               </>
+             )}
           </div>
         </div>
         
@@ -548,13 +698,16 @@ export function ProgrammingPage() {
 
       <div className="space-y-8 pb-12">
         {(selectedSector === 'Picadillo' ? ['BATEAS', 'MATERIA PRIMA PROCESADA'] : [
+          selectedSector === 'Cocina' ? ['COCCIONES', 'PICADILLOS EN PROCESO'] :
           selectedSector === 'Mesa de Carnes' ? 'COCCIONES' : 
           selectedSector === 'Salsas' ? 'UNIDADES' : 
           selectedSector === 'Armado' ? 'BANDEJAS' : 
           'COCCIONES'
-        ]).map((sectionTitle) => {
+        ]).flat().map((sectionTitle) => {
           const isPicadilloMP = sectionTitle === 'MATERIA PRIMA PROCESADA';
-          const picadilloMPList = ['HUEVO', 'MUZZARELLA PICADA ARMADO', 'PANCETA FETEADA', 'CHEDDAR PICADO', 'BOLLOS PA', 'JAMON FETEADO', 'JAMON CUBETEADO', 'PROVOLETA PICADA', 'SARDO PICADO', 'CHEDDAR AC', 'CHEDDAR EB', 'CHEDDAR TONADITA', 'PESADO CH', 'CHERRY', 'CIRUELA', 'PESADO 4Q', 'PESADO RJ', 'BOLLOS JQ'];
+          const isCocinaPP = sectionTitle === 'PICADILLOS EN PROCESO';
+          const picadilloMPList = ['HUEVO', 'MUZZARELLA PICADA ARMADO', 'PANCETA FETEADA', 'CHEDDAR PICADO', 'JAMON FETEADO', 'JAMON CUBETEADO', 'PROVOLETA PICADA', 'SARDO PICADO', 'CHEDDAR AC', 'CHEDDAR EB', 'CHEDDAR TONADITA', 'PESADO CH', 'CHERRY', 'PESADO 4Q', 'PESADO RJ', 'BOLLOS JQ'];
+          const cocinaPPList = ['VACIO LIMPIO', 'VACIO PICADO', 'MATAMBRE SIN PICAR'];
           
           if (selectedSector === 'Armado') {
             return (
@@ -571,17 +724,24 @@ export function ProgrammingPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-
-                      <button
-                        onClick={() => {
-                          const nextNum = machineNames.length + 1;
-                          setMachineNames([...machineNames, `MÁQUINA ${nextNum}`]);
-                        }}
-                        className="group flex items-center gap-3 px-6 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95"
-                      >
-                        <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" />
-                        <span>Añadir Máquina</span>
-                      </button>
+                      {!hasEditPermission && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full">
+                          <Eye className="w-3 h-3 text-amber-500" />
+                          <span className="text-[8px] font-black text-amber-500 uppercase tracking-[0.2em]">Sólo Lectura</span>
+                        </div>
+                      )}
+                      {hasEditPermission && (
+                        <button
+                          onClick={() => {
+                            const nextNum = machineNames.length + 1;
+                            setMachineNames([...machineNames, `MÁQUINA ${nextNum}`]);
+                          }}
+                          className="group flex items-center gap-3 px-6 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95"
+                        >
+                          <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" />
+                          <span>Añadir Máquina</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -620,65 +780,112 @@ export function ProgrammingPage() {
                                   </div>
                                 )}
                               </div>
-                              <button
-                                onClick={() => {
-                                  setConfirmModal({ isOpen: true, machineName });
-                                }}
-                                className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover/card:opacity-100"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {hasEditPermission && (
+                                <button
+                                  onClick={() => {
+                                    setConfirmModal({ isOpen: true, machineName });
+                                  }}
+                                  className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover/card:opacity-100"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Personnel Fields */}
+                            <div className="px-8 py-3 bg-blue-500/5 border-b dark:border-white/10 grid grid-cols-2 gap-4 relative z-10">
+                              <div className="space-y-1">
+                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Cargador</label>
+                                <input 
+                                  type="text"
+                                  placeholder="Nro..."
+                                  value={machineRows[0]?.cargador || ''}
+                                  onChange={(e) => updateArmadoPersonnel(machineName, 'cargador', e.target.value)}
+                                  disabled={!hasEditPermission}
+                                  className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-700 dark:text-white outline-none focus:border-blue-500/50 transition-all disabled:opacity-50"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Checker</label>
+                                <input 
+                                  type="text"
+                                  placeholder="Nombre..."
+                                  value={machineRows[0]?.checker || ''}
+                                  onChange={(e) => updateArmadoPersonnel(machineName, 'checker', e.target.value)}
+                                  disabled={!hasEditPermission}
+                                  className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-700 dark:text-white outline-none focus:border-blue-500/50 transition-all disabled:opacity-50"
+                                />
+                              </div>
                             </div>
                             
                             <div className="p-4 md:p-6 space-y-4 flex-1 overflow-y-auto max-h-[600px] scrollbar-none relative z-10">
                               {machineRows.map((row) => (
-                                <div key={row.id} className="relative bg-gray-50/50 dark:bg-black/20 p-2 rounded-2xl border border-gray-100 dark:border-white/5 transition-all duration-300 hover:border-blue-500/30 group/row flex items-center gap-2">
-                                  <div className="flex-[1.5] min-w-0 bg-white dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5 px-3 py-2 transition-all group-hover/row:border-blue-500/20 shadow-sm">
+                                <div key={row.id} className="relative bg-gray-50/50 dark:bg-black/20 p-4 rounded-[2rem] border border-gray-100 dark:border-white/5 transition-all duration-300 hover:border-blue-500/30 group/row flex flex-col gap-3">
+                                  <div className="w-full bg-white dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5 px-4 py-2.5 transition-all group-hover/row:border-blue-500/20 shadow-sm flex items-center gap-3">
+                                    <Package className="w-4 h-4 text-blue-500 opacity-50 flex-shrink-0" />
+                                    <select
+                                      value={row.product}
+                                      onChange={(e) => updateRow(row.id, 'product', e.target.value)}
+                                      disabled={!hasEditPermission}
+                                      className="w-full bg-transparent border-none text-sm font-black text-gray-900 dark:text-white p-0 focus:ring-0 cursor-pointer uppercase tracking-tight disabled:cursor-default"
+                                    >
+                                      {SECTOR_PRODUCTS.Armado.map(prod => (
+                                        <option key={prod} value={prod} className="bg-white dark:bg-[#1a1c23]">{prod}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                    <div className="flex items-center justify-between gap-4 px-1">
+                                      <div className="flex flex-col items-start gap-1">
+                                        <span className="text-[8px] font-black text-blue-500/50 uppercase tracking-widest leading-none">
+                                          Ref. Armar
+                                        </span>
+                                        <span className="text-sm font-black text-blue-600 dark:text-blue-400 leading-none">
+                                          {getRefValue(row.product, 'Armado')}
+                                        </span>
+                                      </div>
                                     <div className="flex items-center gap-2">
-                                      <Package className="w-3.5 h-3.5 text-blue-500 opacity-50 flex-shrink-0" />
-                                      <select
-                                        value={row.product}
-                                        onChange={(e) => updateRow(row.id, 'product', e.target.value)}
-                                        className="w-full bg-transparent border-none text-[13px] font-black text-gray-900 dark:text-white p-0 focus:ring-0 cursor-pointer uppercase tracking-tight truncate"
-                                      >
-                                        {SECTOR_PRODUCTS.Armado.map(prod => (
-                                          <option key={prod} value={prod} className="bg-white dark:bg-[#1a1c23]">{prod}</option>
-                                        ))}
-                                      </select>
+                                      <div className="w-32 relative group/input">
+                                        <NumericInput
+                                          value={row.planned_kg}
+                                          onChange={(val) => updateRow(row.id, 'planned_kg', val)}
+                                          onKeyDown={handleKeyDown}
+                                          placeholder="0"
+                                          disabled={!hasEditPermission}
+                                          className="w-full pl-9 pr-3 py-2 text-xl font-black text-right bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 rounded-xl text-gray-900 dark:text-white transition-all outline-none placeholder:opacity-10 shadow-sm disabled:opacity-50"
+                                        />
+                                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2"><span className="text-[7px] font-black text-blue-500 bg-blue-500/10 px-1 py-0.5 rounded uppercase tracking-tighter">Bandejas</span></div>
+                                      </div>
+                                      {hasEditPermission && (
+                                        <button onClick={() => setProgramming(programming.filter(p => p.id !== row.id))} className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-xl text-gray-300 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-all">
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
-                                  <div className="w-32 relative group/input">
-                                    <input
-                                      type="number"
-                                      value={row.planned_kg === 0 ? '' : row.planned_kg}
-                                      onChange={(e) => updateRow(row.id, 'planned_kg', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                                      placeholder="0"
-                                      className="w-full pl-9 pr-3 py-2 text-xl font-black text-right bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 rounded-xl text-gray-900 dark:text-white transition-all outline-none placeholder:opacity-10 shadow-sm"
-                                    />
-                                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2"><span className="text-[7px] font-black text-blue-500 bg-blue-500/10 px-1 py-0.5 rounded uppercase tracking-tighter">Bandejas</span></div>
-                                  </div>
-                                  <button onClick={() => setProgramming(programming.filter(p => p.id !== row.id))} className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-xl text-gray-300 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-all"><Trash2 className="w-4 h-4" /></button>
                                 </div>
                               ))}
-                              <button
-                                onClick={() => {
-                                  const newRow: Programming = {
-                                    id: `temp-${Date.now()}-${Math.random()}`,
-                                    date: selectedDate,
-                                    sector: 'Armado',
-                                    product: SECTOR_PRODUCTS.Armado[0],
-                                    shift_type: selectedShift,
-                                    planned_kg: 0,
-                                    machine: machineName,
-                                    created_at: new Date().toISOString(),
-                                  };
-                                  setProgramming([...programming, newRow]);
-                                }}
-                                className="w-full py-5 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-[2rem] text-gray-400 hover:text-blue-500 hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-blue-500/5 transition-all flex flex-col items-center justify-center gap-2 group/addbtn mt-2"
-                              >
-                                <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-full group-hover/addbtn:bg-blue-500/10 transition-colors"><Plus className="w-5 h-5 transition-transform group-hover/addbtn:rotate-90 group-hover/addbtn:scale-110" /></div>
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Cargar Producto</span>
-                              </button>
+                              {hasEditPermission && (
+                                <button
+                                  onClick={() => {
+                                    const newRow: Programming = {
+                                      id: `temp-${Date.now()}-${Math.random()}`,
+                                      date: selectedDate,
+                                      sector: 'Armado',
+                                      product: SECTOR_PRODUCTS.Armado[0],
+                                      shift_type: selectedShift,
+                                      planned_kg: 0,
+                                      machine: machineName,
+                                      created_at: new Date().toISOString(),
+                                    };
+                                    setProgramming([...programming, newRow]);
+                                  }}
+                                  className="w-full py-5 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-[2rem] text-gray-400 hover:text-blue-500 hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-blue-500/5 transition-all flex flex-col items-center justify-center gap-2 group/addbtn mt-2"
+                                >
+                                  <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-full group-hover/addbtn:bg-blue-500/10 transition-colors"><Plus className="w-5 h-5 transition-transform group-hover/addbtn:rotate-90 group-hover/addbtn:scale-110" /></div>
+                                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Cargar Producto</span>
+                                </button>
+                              )}
                             </div>
                             <div className="px-5 py-6 md:px-8 md:py-8 bg-gray-50/80 dark:bg-black/40 border-t dark:border-white/10 flex justify-between items-center relative z-10">
                               <div>
@@ -694,19 +901,18 @@ export function ProgrammingPage() {
                   </div>
                 </div>
 
-                <div className={`fixed ${isScrolled ? 'top-0' : 'top-[64px]'} bottom-0 right-0 z-40 transform transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${showExcelPanel ? 'translate-x-0 w-full md:w-[320px] lg:w-[450px]' : 'translate-x-[calc(100%-85px)] md:translate-x-[calc(100%-120px)] w-[85px] md:w-[120px]'}`}>
+                <div className={`fixed ${isScrolled ? 'top-0' : 'top-[64px]'} bottom-0 right-0 z-40 transform transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${showExcelPanel ? 'translate-x-0 w-full md:w-[320px] lg:w-[450px]' : 'translate-x-[calc(100%-100px)] md:translate-x-[calc(100%-150px)] w-[100px] md:w-[150px]'}`}>
                   {!showExcelPanel && (
-                    <button onClick={() => setShowExcelPanel(true)} className="absolute inset-y-0 left-0 w-full flex flex-col bg-blue-600 dark:bg-[#1a1c23] backdrop-blur-md transition-colors cursor-pointer group/peek border-l border-white/10 shadow-[-20px_0_60px_rgba(0,0,0,0.5)]">
-                      <div className="p-3 md:p-5 bg-blue-700/50 w-full flex items-center justify-center md:justify-between border-b border-white/10">
-                        <ClipboardList className="w-6 h-6 text-white flex-shrink-0" />
-                        <span className="hidden md:block text-xs font-black text-white uppercase tracking-widest">Objetivo Diario</span>
+                    <button onClick={() => setShowExcelPanel(true)} className="absolute inset-y-0 left-0 w-full flex flex-col bg-[#111318] dark:bg-[#0f1115] backdrop-blur-md transition-colors cursor-pointer group/peek border-l border-white/10 shadow-[-20px_0_60px_rgba(0,0,0,0.5)]">
+                      <div className="p-3 md:p-4 bg-blue-700/80 w-full flex flex-col items-center justify-center border-b border-white/10">
+                        <ClipboardList className="w-5 h-5 text-white mb-1" />
+                        <span className="text-[9px] font-black text-white uppercase tracking-widest text-center leading-none">OBJETIVO<br/>DIARIO</span>
                       </div>
-                      <div className="flex-1 w-full overflow-y-auto overflow-x-hidden px-1 md:px-4 pt-1 pb-8 md:py-8 space-y-3 md:space-y-5 scrollbar-none text-left">
+                      <div className="flex-1 w-full overflow-y-auto overflow-x-hidden px-2 pt-2 pb-8 space-y-4 scrollbar-none text-left">
                         {Object.entries(excelComparison).map(([product, target]) => {
                           const programmed = totalsByProduct[product] || 0;
                           const diff = programmed - target;
                           
-                          // Obtener filas de programación para este producto
                           const productRows = dailyArmadoProgramming
                             .filter(p => p.product === product && p.planned_kg > 0 && p.machine);
                           
@@ -715,70 +921,77 @@ export function ProgrammingPage() {
                           const isAhead = diff > 0;
                           const isDelayed = diff < 0 && !isUnassigned;
 
-                          let cardClass = "bg-white/10 border-white/20";
-                          let badgeClass = "bg-blue-600 shadow-blue-600/20 border-blue-400/20";
-                          let diffClass = "bg-red-500 shadow-red-300/30";
+                          let cardClass = "bg-white/5 border-white/10";
+                          let badgeClass = "bg-blue-600 border-blue-400/20";
+                          let diffClass = "bg-red-500";
 
                           if (isUnassigned) {
-                            cardClass = "bg-gray-500/10 border-gray-500/30 opacity-70";
-                            badgeClass = "bg-gray-500/40 border-white/10";
+                            cardClass = "bg-gray-500/5 border-gray-500/20 opacity-60";
+                            badgeClass = "bg-gray-500/40 border-white/5";
                             diffClass = "bg-gray-700 text-white/40";
                           } else if (isOK) {
-                            cardClass = "bg-emerald-500/20 border-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.1)]";
-                            badgeClass = "bg-emerald-600 border-emerald-400/30 shadow-emerald-600/20";
+                            cardClass = "bg-emerald-500/10 border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.1)]";
+                            badgeClass = "bg-emerald-600 border-emerald-400/30";
                             diffClass = "bg-emerald-500";
                           } else if (isAhead) {
-                            cardClass = "bg-orange-500/20 border-orange-400 shadow-[0_0_30px_rgba(249,115,22,0.1)]";
-                            badgeClass = "bg-orange-600 border-orange-400/30 shadow-orange-600/20";
+                            cardClass = "bg-orange-500/10 border-orange-500/40 shadow-[0_0_20px_rgba(249,115,22,0.1)]";
+                            badgeClass = "bg-orange-600 border-orange-400/30";
                             diffClass = "bg-orange-500";
                           } else if (isDelayed) {
-                            cardClass = "bg-red-500/20 border-red-400 shadow-[0_0_30px_rgba(239,68,68,0.1)]";
-                            badgeClass = "bg-red-600 border-red-400/30 shadow-red-600/20";
+                            cardClass = "bg-red-500/10 border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.1)]";
+                            badgeClass = "bg-red-600 border-red-400/30";
                             diffClass = "bg-red-500";
                           }
 
                           return (
-                            <div key={product} className={`w-full rounded-xl md:rounded-[1.5rem] p-2 md:p-5 border transition-all duration-500 relative ${cardClass} mt-2 md:mt-4 shadow-lg shadow-black/20`}>
-                              <div className="flex flex-col items-center justify-center w-full px-1 mb-2 gap-0.5">
-                                {isUnassigned ? (
-                                  <span className="text-[7px] font-black text-white/40 px-2 py-0.5 rounded-md uppercase border border-white/5 bg-white/5 tracking-widest text-center">Sin asignar</span>
-                                ) : (
-                                  condenseByShift(productRows).map((line, idx) => (
-                                    <span key={idx} className={`text-[7px] font-black text-white px-2 py-0.5 rounded-md uppercase shadow-lg border text-center whitespace-nowrap overflow-hidden w-full ${badgeClass}`}>
-                                      {line}
-                                    </span>
-                                  ))
-                                )}
-                              </div>
-                                <div className="flex justify-between items-start mb-2 md:mb-3 pt-1">
-                                  <div className="flex flex-col gap-1">
-                                    <div className="flex items-center gap-1 md:gap-3">
-                                      <span className={`text-[11px] md:text-sm font-black uppercase tracking-tight truncate max-w-[40px] md:max-w-[80px] ${isOK ? 'text-emerald-400' : 'text-white'}`}>{product}</span>
-                                      {isOK && <Check className="w-3 md:w-5 h-3 md:h-5 text-emerald-400 shrink-0" />}
-                                    </div>
-                                  </div>
-                                  <div className={`px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg text-[9px] md:text-[10px] font-black shadow-lg text-white ${diffClass}`}>{isOK ? 'OK' : (diff > 0 ? '+' : '') + diff}</div>
+                            <div key={product} className={`w-full rounded-3xl p-3 border transition-all duration-500 relative ${cardClass} shadow-xl shadow-black/20 overflow-hidden flex flex-col items-center`}>
+                              {/* HEADER: STATUS ONLY IN PEEK */}
+                              <div className="w-full flex justify-center mb-2">
+                                <div className={`px-2 py-0.5 rounded-lg text-[8px] font-black shadow-lg text-white ring-1 ring-white/10 ${diffClass}`}>
+                                  {isOK ? 'OK' : (diff > 0 ? '+' : '') + diff}
                                 </div>
-                               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                                 <div className="flex flex-col shrink-0"><span className="text-[8px] md:text-[9px] font-black text-white/40 uppercase tracking-widest leading-none mb-0.5 md:mb-1">PLAN</span><span className="text-[11px] md:text-sm font-black text-white leading-none">{target}</span></div>
-                                 <div className="hidden md:block w-px h-6 bg-white/10"></div>
-                                 <div className={`flex flex-col shrink-0 ${isOK ? 'text-emerald-400' : 'text-blue-400'}`}><span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest leading-none mb-0.5 md:mb-1">CARG.</span><span className="text-[11px] md:text-sm font-black text-white leading-none">{programmed}</span></div>
-                               </div>
+                              </div>
+
+                              {/* PRODUCT CODE */}
+                              <div className="flex flex-col items-center mb-3">
+                                <h4 className={`text-2xl font-black tracking-tighter ${isOK ? 'text-emerald-400' : 'text-white'}`}>
+                                  {product}
+                                </h4>
+                                {isOK && <Check className="w-3 h-3 text-emerald-500 mt-1" />}
+                              </div>
+
+                              {/* MINI FOOTER: STACKED */}
+                              <div className="w-full pt-2 border-t border-white/10 flex flex-col gap-2 items-center">
+                                <div className="flex flex-col items-center">
+                                  <span className="text-[7px] font-black text-white/30 uppercase tracking-widest leading-none mb-0.5">PLAN</span>
+                                  <span className="text-sm font-black text-white leading-none">{target}</span>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                  <span className={`text-[7px] font-black uppercase tracking-widest leading-none mb-0.5 ${isOK ? 'text-emerald-400' : 'text-blue-400'}`}>CARG.</span>
+                                  <span className="text-sm font-black text-white leading-none">{programmed}</span>
+                                </div>
+                              </div>
                             </div>
                           );
                         })}
                       </div>
-                      <div className="p-3 md:p-6 bg-black/40 border-t border-white/20">
-                        <div className="flex flex-col gap-4 md:gap-6">
-                          <div className="flex flex-col items-center text-center"><span className="text-[9px] md:text-[11px] font-black text-white/40 uppercase tracking-[0.2em] mb-0.5 md:mb-1">Meta</span><span className="text-xl md:text-3xl font-black text-white tracking-tighter shadow-sm">{Object.values(excelComparison).reduce((a, b) => a + b, 0)}</span></div>
-                          <div className="flex flex-col items-center text-center">
-                            <span className="text-[9px] md:text-[11px] font-black text-blue-400 uppercase tracking-[0.2em] mb-1 md:mb-2">Diff</span>
-                            <div className={`w-full py-1.5 md:py-3 rounded-xl md:rounded-2xl text-lg md:text-2xl font-black shadow-2xl border-2 flex items-center justify-center ${
-                              (Object.values(totalsByProduct).reduce((a, b) => a + b, 0) - Object.values(excelComparison).reduce((a, b) => a + b, 0)) >= 0 
-                              ? 'bg-teal-500 border-teal-300 text-white shadow-teal-500/10' : 'bg-red-500 border-red-400 text-white shadow-red-500/20'
-                            }`}>
-                              {Object.values(totalsByProduct).reduce((a, b) => a + b, 0) - Object.values(excelComparison).reduce((a, b) => a + b, 0)}
-                            </div>
+                      
+                      {/* BOTTOM TOTALS: COMPACT */}
+                      <div className="p-3 bg-black/60 border-t border-white/20 space-y-4">
+                        <div className="flex flex-col items-center text-center">
+                          <span className="text-[8px] font-black text-white/30 uppercase tracking-widest mb-1">META TOTAL</span>
+                          <span className="text-xl font-black text-white tracking-tighter">
+                            {Object.values(excelComparison).reduce((a, b) => a + b, 0)}
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-center text-center">
+                          <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1 leading-tight">DIFERENCIA<br/>FINAL</span>
+                          <div className={`w-12 h-12 rounded-full text-sm font-black flex items-center justify-center border-2 transition-all ${
+                            (Object.values(totalsByProduct).reduce((a, b) => a + b, 0) - Object.values(excelComparison).reduce((a, b) => a + b, 0)) >= 0 
+                            ? 'bg-emerald-500 border-emerald-300 text-white shadow-lg shadow-emerald-500/20' 
+                            : 'bg-rose-500 border-rose-400 text-white shadow-lg shadow-rose-500/20'
+                          }`}>
+                            {Object.values(totalsByProduct).reduce((a, b) => a + b, 0) - Object.values(excelComparison).reduce((a, b) => a + b, 0)}
                           </div>
                         </div>
                       </div>
@@ -905,23 +1118,27 @@ export function ProgrammingPage() {
             );
           }
 
-          const COCINA_ONLY = ['PC', 'MT', 'MPP'];
+          const COCINA_ONLY = ['PC', 'MT', 'MPP', 'VACIO LIMPIO', 'VACIO PICADO', 'MATAMBRE SIN PICAR'];
           const PICADILLO_ONLY = ['JQ', 'JH', 'CH', 'RJ', '4Q', 'PA'];
           const BOTH_SECTORS = ['EB', 'BB', 'CS', 'CP', 'CA', 'CC', 'PO', 'AC', 'VP', 'QC', 'CZ', 'V'];
 
           let filteredRows = visibleProgramming;
           if (selectedSector === 'Cocina') {
-            filteredRows = visibleProgramming.filter(p => {
-              const prod = p.product.trim().toUpperCase();
-              return COCINA_ONLY.includes(prod) || BOTH_SECTORS.includes(prod);
-            });
-          } else if (selectedSector === 'Picadillo') {
-            if (isPicadilloMP) {
-              filteredRows = visibleProgramming.filter(p => picadilloMPList.includes(p.product));
+            if (isCocinaPP) {
+              filteredRows = visibleProgramming.filter(p => cocinaPPList.includes(p.product.toUpperCase()));
             } else {
               filteredRows = visibleProgramming.filter(p => {
                 const prod = p.product.trim().toUpperCase();
-                return PICADILLO_ONLY.includes(prod) || BOTH_SECTORS.includes(prod);
+                return (COCINA_ONLY.includes(prod) || BOTH_SECTORS.includes(prod)) && !cocinaPPList.includes(prod);
+              });
+            }
+          } else if (selectedSector === 'Picadillo') {
+            if (isPicadilloMP) {
+              filteredRows = visibleProgramming.filter(p => picadilloMPList.includes(p.product.toUpperCase()));
+            } else {
+              filteredRows = visibleProgramming.filter(p => {
+                const prod = p.product.trim().toUpperCase();
+                return (PICADILLO_ONLY.includes(prod) || BOTH_SECTORS.includes(prod)) && !picadilloMPList.includes(prod);
               });
             }
           }
@@ -951,11 +1168,8 @@ export function ProgrammingPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 px-2 sm:px-0">
                   {filteredRows.map((row) => {
-                    const refValue = converterResults[row.product.trim()];
-                    const hasRef = refValue !== undefined;
-                    const formattedRef = hasRef 
-                      ? (refValue % 1 !== 0 ? refValue.toString().replace('.', ',') : refValue)
-                      : '0';
+                    const formattedRef = getRefValue(row.product, selectedSector);
+                    const refLabel = getRefLabel(selectedSector);
 
                     return (
                       <div key={row.id} className="group flex items-center justify-between bg-white dark:bg-white/[0.03] hover:bg-gray-50 dark:hover:bg-white/[0.08] p-4 sm:p-5 transition-all duration-300 border border-gray-100 dark:border-white/5 rounded-3xl shadow-sm hover:shadow-xl">
@@ -981,7 +1195,8 @@ export function ProgrammingPage() {
                                 placeholder="Observaciones..."
                                 value={row.observations || ''}
                                 onChange={(e) => updateRow(row.id, 'observations', e.target.value)}
-                                className="w-full bg-gray-100/50 dark:bg-black/20 border-b border-gray-200 dark:border-white/5 px-2 py-1 text-[11px] font-bold text-gray-600 dark:text-gray-400 focus:outline-none focus:border-blue-500 transition-all rounded"
+                                disabled={!hasEditPermission}
+                                className="w-full bg-gray-100/50 dark:bg-black/20 border-b border-gray-200 dark:border-white/5 px-2 py-1 text-[11px] font-bold text-gray-600 dark:text-gray-400 focus:outline-none focus:border-blue-500 transition-all rounded disabled:opacity-50"
                                 autoFocus={expandedObservations[row.id] && !row.observations}
                               />
                             </div>
@@ -991,22 +1206,23 @@ export function ProgrammingPage() {
                         {/* Right: Data & Input unit - Tightened */}
                         <div className="flex items-center gap-5 sm:gap-8">
                           {/* Reference Block */}
-                          <div className="flex flex-col items-end">
-                            <span className="text-[8px] font-black text-blue-500/50 uppercase tracking-widest mb-0.5 whitespace-nowrap">Ref. Armar</span>
-                            <span className="text-lg font-black text-blue-500 dark:text-blue-400 leading-none">{formattedRef}</span>
-                          </div>
+                          {!isPicadilloMP && !isCocinaPP && (
+                            <div className="flex flex-col items-end">
+                              <span className="text-[8px] font-black text-blue-500/50 uppercase tracking-widest mb-0.5 whitespace-nowrap">{refLabel}</span>
+                              <span className="text-lg font-black text-blue-500 dark:text-blue-400 leading-none">{formattedRef}</span>
+                            </div>
+                          )}
 
                           {/* Mini Input Box */}
                           <div className="relative flex flex-col items-end">
                              <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-1 px-1">PLANIFICADO</span>
-                             <input 
-                              type="number" 
-                              value={row.planned_kg === 0 ? '' : row.planned_kg} 
-                              onChange={(e) => updateRow(row.id, 'planned_kg', e.target.value === '' ? 0 : parseFloat(e.target.value))} 
-                              min="0" 
-                              step="0.1" 
+                             <NumericInput 
+                              value={row.planned_kg} 
+                              onChange={(val) => updateRow(row.id, 'planned_kg', val)} 
+                              onKeyDown={handleKeyDown}
                               placeholder="0" 
-                              className={`w-24 sm:w-32 bg-gray-100/50 dark:bg-black/40 border-2 border-transparent ${theme.ring} px-2 py-2 text-xl sm:text-2xl font-black text-gray-900 dark:text-white text-right focus:bg-white dark:focus:bg-black transition-all outline-none rounded-xl`}
+                              disabled={!hasEditPermission}
+                              className={`w-24 sm:w-32 bg-gray-100/50 dark:bg-black/40 border-2 border-transparent ${theme.ring} px-2 py-2 text-xl sm:text-2xl font-black text-gray-900 dark:text-white text-right focus:bg-white dark:focus:bg-black transition-all outline-none rounded-xl disabled:opacity-50`}
                             />
                           </div>
                         </div>
@@ -1023,9 +1239,9 @@ export function ProgrammingPage() {
           return (
             <div key={sectionTitle} className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 overflow-hidden transition-all duration-300">
               <h3 className="px-8 py-5 text-xs font-black bg-gray-50 dark:bg-black/20 text-gray-400 border-b dark:border-white/10 text-center uppercase tracking-[0.3em]">{sectionTitle}</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-black/10 border-b border-gray-200 dark:border-white/10">
+              <div className="max-h-[80vh] overflow-auto">
+                <table className="w-full border-separate border-spacing-0">
+                  <thead className="bg-gray-50 dark:bg-black/10 border-b border-gray-200 dark:border-white/10 sticky top-0 z-20">
                     <tr>
                       <th className="px-3 sm:px-8 py-4 text-left text-[9px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest w-[40%] sm:w-1/3">Producto</th>
                       <th className="px-1 sm:px-8 py-4 text-center text-[9px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest w-[20%] sm:w-40">Turno</th>
@@ -1035,28 +1251,33 @@ export function ProgrammingPage() {
                   <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                     {filteredRows.map((row) => (
                       <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
-                        <td className="px-3 sm:px-8 py-3 sm:py-4"><span className="text-[11px] sm:text-base font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors uppercase tracking-tight">{row.product}</span></td>
-                        <td className="px-1 sm:px-8 py-3 sm:py-4 text-center"><span className="inline-flex px-2 sm:px-3 py-1 rounded-full text-[8px] sm:text-[10px] font-black bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-white/10 uppercase tracking-widest">{row.shift_type ?? 'Mañana'}</span></td>
+                        <td className="px-3 sm:px-8 py-3 sm:py-4">
+                          <div className="flex flex-col gap-2">
+                            <span className="text-[11px] sm:text-base font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors uppercase tracking-tight">{row.product}</span>
+                          </div>
+                        </td>
+                        <td className="px-1 sm:px-8 py-3 sm:py-4 text-center">
+                          <div className="flex flex-col gap-2 items-center">
+                            <span className="inline-flex px-2 sm:px-3 py-1 rounded-full text-[8px] sm:text-[10px] font-black bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-white/10 uppercase tracking-widest">{row.shift_type ?? 'Mañana'}</span>
+                          </div>
+                        </td>
                         <td className="px-3 sm:px-8 py-3 sm:py-4 text-right">
                           <div className="flex items-center justify-end gap-6 sm:gap-12">
                             <div className="text-right">
-                               <p className="text-[8px] sm:text-[10px] font-black text-blue-500/40 uppercase tracking-widest leading-none mb-1 text-center">Bnd. Armar</p>
-                               <p className="text-sm sm:text-xl font-black text-blue-600 dark:text-blue-400 leading-none text-center">
-                                 {converterResults[row.product.trim()] !== undefined 
-                                   ? (converterResults[row.product.trim()] % 1 !== 0 
-                                       ? converterResults[row.product.trim()].toString().replace('.', ',') 
-                                       : converterResults[row.product.trim()])
-                                   : '-'}
+                               <p className="text-[8px] sm:text-[10px] font-black text-blue-500/40 uppercase tracking-widest leading-none mb-1 text-center">
+                                 {getRefLabel(selectedSector)}
                                </p>
+                                <p className="text-sm sm:text-xl font-black text-blue-600 dark:text-blue-400 leading-none text-center">
+                                  {getRefValue(row.product, selectedSector)}
+                                </p>
                             </div>
-                            <input 
-                              type="number" 
-                              value={row.planned_kg === 0 ? '' : row.planned_kg} 
-                              onChange={(e) => updateRow(row.id, 'planned_kg', e.target.value === '' ? 0 : parseFloat(e.target.value))} 
-                              min="0" 
-                              step="0.1" 
+                            <NumericInput 
+                              value={row.planned_kg} 
+                              onChange={(val) => updateRow(row.id, 'planned_kg', val)} 
+                              onKeyDown={handleKeyDown}
                               placeholder="0" 
-                              className="w-24 sm:w-36 inline-block px-4 sm:px-6 py-2 sm:py-3 text-lg sm:text-2xl font-black text-right bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-2xl text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-inner" 
+                              disabled={!hasEditPermission}
+                              className="w-24 sm:w-36 inline-block px-4 sm:px-6 py-2 sm:py-3 text-lg sm:text-2xl font-black text-right bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-2xl text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-inner disabled:opacity-50" 
                             />
                           </div>
                         </td>

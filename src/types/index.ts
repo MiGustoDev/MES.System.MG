@@ -17,10 +17,13 @@ export const PRODUCTS = [
   'MATAMBRE',
   'PALETA DE CERDO',
   'BONDIOLA DE CERDO',
-  'NALGA',
+  'PALETA DE VACA',
   'PECHO DE CERDO',
   'POLLO',
   'CUADRADA',
+  'VACIO LIMPIO',
+  'VACIO PICADO',
+  'MATAMBRE SIN PICAR',
 ] as const;
 
 export const SECTOR_PRODUCTS = {
@@ -33,7 +36,7 @@ export const SECTOR_PRODUCTS = {
     'MATAMBRE',
     'PALETA DE CERDO',
     'BONDIOLA DE CERDO',
-    'NALGA',
+    'PALETA DE VACA',
     'PECHO DE CERDO',
     'POLLO',
     'CUADRADA',
@@ -66,6 +69,9 @@ export const SECTOR_PRODUCTS = {
     'CEBOLLA CC',
     'FONDEO',
     'SOFRITO',
+    'VACIO LIMPIO',
+    'VACIO PICADO',
+    'MATAMBRE SIN PICAR',
   ],
   'Picadillo': [
     'CP',
@@ -96,8 +102,7 @@ export const SECTOR_PRODUCTS = {
     'MUZZARELLA PICADA ARMADO',
     'PANCETA FETEADA',
     'CHEDDAR PICADO',
-    'BOLLOS PA',
-    'JAMON FETEADO',
+    'JAMON FETEADA',
     'JAMON CUBETEADO',
     'PROVOLETA PICADA',
     'SARDO PICADO',
@@ -106,7 +111,6 @@ export const SECTOR_PRODUCTS = {
     'CHEDDAR TONADITA',
     'PESADO CH',
     'CHERRY',
-    'CIRUELA',
     'PESADO 4Q',
     'PESADO RJ',
     'BOLLOS JQ',
@@ -165,6 +169,8 @@ export interface Programming {
   shift_type?: ShiftType;
   planned_kg: number;
   observations?: string;
+  cargador?: string;
+  checker?: string;
   machine?: string;
   created_at: string;
 }
@@ -178,6 +184,8 @@ export interface Production {
   planned: number;
   produced: number;
   observations?: string;
+  cargador?: string;
+  checker?: string;
   machine?: string;
   created_at: string;
   updated_at: string;
@@ -193,6 +201,9 @@ export interface History {
   produced: number;
   difference: number;
   status: Status;
+  observations?: string;
+  cargador?: string;
+  checker?: string;
   machine?: string;
   created_at: string;
 }

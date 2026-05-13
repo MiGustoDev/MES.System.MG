@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { History, SECTORS, Sector, SHIFT_TYPES, ShiftType, SECTOR_PRODUCTS, calculateStatus } from '../types';
-import { Calendar, Beef, ChefHat, ListRestart, Package, Droplets, Info, TrendingUp, Target, Activity } from 'lucide-react';
+import { Calendar, Beef, ChefHat, ListRestart, Package, Droplets, Info, TrendingUp, Target, Activity, Download, FileText, X } from 'lucide-react';
 import { CalendarDropdown } from '../components/CalendarDropdown';
 import { formatNumber } from '../utils/format';
 
@@ -28,6 +28,12 @@ export function HistoryPage() {
   const [history, setHistory] = useState<History[]>([]);
   const [availableShifts, setAvailableShifts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showExportPanel, setShowExportPanel] = useState(false);
+  const [exportRange, setExportRange] = useState({
+    start: new Date().toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
+  });
+  const [isExporting, setIsExporting] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -50,7 +56,8 @@ export function HistoryPage() {
         .select('*')
         .eq('date', selectedDate)
         .eq('shift_type', selectedShift)
-        .order('sector', { ascending: true });
+        .eq('sector', selectedSector)
+        .order('product', { ascending: true });
 
       const { data, error } = await query;
       if (error) throw error;
@@ -62,9 +69,78 @@ export function HistoryPage() {
     }
   };
 
-  const filteredHistory = history.filter(item => {
-    const sectorProducts = SECTOR_PRODUCTS[selectedSector] as readonly string[];
-    return item.sector === selectedSector && sectorProducts.includes(item.product);
+  const handleExportRange = async () => {
+    setIsExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('history')
+        .select('*')
+        .gte('date', exportRange.start)
+        .lte('date', exportRange.end)
+        .order('date', { ascending: true })
+        .order('sector', { ascending: true });
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        alert('No hay datos en el rango seleccionado');
+        return;
+      }
+
+      // Preparar CSV
+      const headers = ['Fecha', 'Turno', 'Sector', 'Producto', 'Maquina', 'Planificado', 'Logrado', 'Diferencia', 'Estado', 'Cargador', 'Checker', 'Observaciones'];
+      const csvRows = [headers.join(';')];
+
+      data.forEach((item: any) => {
+        const diff = item.difference ?? (item.produced - item.planned);
+        const status = item.status ?? (diff > 0 ? 'Adelanto' : (diff === 0 ? 'OK' : 'Atraso'));
+        
+        const row = [
+          item.date,
+          item.shift_type,
+          item.sector,
+          item.product,
+          item.machine || '',
+          item.planned,
+          item.produced,
+          diff,
+          status,
+          item.cargador || '',
+          item.checker || '',
+          (item.observations || '').replace(/;/g, ',')
+        ];
+        csvRows.push(row.join(';'));
+      });
+
+      const csvString = csvRows.join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Historial_Produccion_${exportRange.start}_a_${exportRange.end}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setShowExportPanel(false);
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      alert('Error al exportar los datos');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const filteredHistory = history.map(item => {
+    // Si faltan campos (por errores en versiones anteriores), los calculamos al vuelo
+    const diff = item.difference ?? (item.produced - item.planned);
+    const status = item.status ?? (diff > 0 ? 'Adelanto' : (diff === 0 ? 'OK' : 'Atraso'));
+    
+    return {
+      ...item,
+      difference: diff,
+      status: status
+    };
   });
   
   const totalPlanned = filteredHistory.reduce((sum, item) => sum + item.planned, 0);
@@ -93,11 +169,87 @@ export function HistoryPage() {
           <p className="text-gray-600 dark:text-gray-400 mt-1 font-medium">Análisis detallado de la planta por jornada</p>
         </div>
         
-        <CalendarDropdown
-          selectedDate={selectedDate}
-          onSelect={setSelectedDate}
-        />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowExportPanel(!showExportPanel)}
+            className={`p-3 rounded-xl transition-all ${
+              showExportPanel 
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
+                : 'bg-white dark:bg-[#1a1c23] text-gray-500 border border-gray-200 dark:border-white/10 hover:border-blue-500'
+            }`}
+            title="Exportar datos"
+          >
+            <Download className="w-5 h-5" />
+          </button>
+          
+          <CalendarDropdown
+            selectedDate={selectedDate}
+            onSelect={setSelectedDate}
+          />
+        </div>
       </div>
+
+      {/* PANEL DE EXPORTACIÓN */}
+      {showExportPanel && (
+        <div className="bg-white dark:bg-[#1a1c23] p-6 rounded-3xl border border-blue-500/30 shadow-2xl shadow-blue-500/10 animate-in slide-in-from-top-4 duration-300 relative">
+          <button 
+            onClick={() => setShowExportPanel(false)}
+            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-blue-500/10 rounded-2xl">
+                <FileText className="w-6 h-6 text-blue-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Exportar Reporte CSV</h3>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mt-0.5">Selecciona el rango de fechas</p>
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-center gap-4 bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-100 dark:border-white/5 w-full md:w-auto">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Desde</span>
+                <CalendarDropdown 
+                  selectedDate={exportRange.start} 
+                  onSelect={(date) => setExportRange(prev => ({ ...prev, start: date }))} 
+                />
+              </div>
+              <div className="w-4 h-px bg-gray-300 dark:bg-white/10 hidden sm:block"></div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Hasta</span>
+                <CalendarDropdown 
+                  selectedDate={exportRange.end} 
+                  onSelect={(date) => setExportRange(prev => ({ ...prev, end: date }))} 
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <button
+                onClick={() => setShowExportPanel(false)}
+                className="flex-1 md:flex-none px-6 py-3 bg-gray-100 dark:bg-white/5 text-gray-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 dark:hover:bg-white/10 transition-all border border-gray-200 dark:border-white/10"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleExportRange}
+                disabled={isExporting}
+                className="flex-1 md:flex-none px-8 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                {isExporting ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                <span>Descargar Reporte</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col items-center gap-4">
         <div className="flex flex-wrap gap-2 justify-center">
