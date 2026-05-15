@@ -7,6 +7,7 @@ import { ProductionPage } from './pages/ProductionPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { PlantScreenPage } from './pages/PlantScreenPage';
 import { ConversorPage } from './pages/ConversorPage';
+import { AdminConfigPage } from './pages/AdminConfigPage';
 
 import { Login } from './components/Login';
 import { useAuth } from './contexts/AuthContext';
@@ -43,6 +44,8 @@ function AppContent() {
         return <HistoryPage />;
       case 'conversor':
         return <ConversorPage />;
+      case 'config':
+        return <AdminConfigPage />;
       default:
         return <DashboardPage />;
     }

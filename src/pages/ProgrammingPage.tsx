@@ -38,6 +38,41 @@ export function ProgrammingPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const [meatDistMap, setMeatDistMap] = useState<Record<string, Record<string, number>>>({});
+
+  useEffect(() => {
+    const loadConfig = () => {
+      const saved = localStorage.getItem('mes_config_meat');
+      if (saved) {
+        setMeatDistMap(JSON.parse(saved));
+      } else {
+        // Fallback a los valores que ya expandimos
+        setMeatDistMap({
+          'CS': { 'ROAST BEEF': 1 },
+          'CA': { 'ROAST BEEF': 1 },
+          'CP': { 'ROAST BEEF': 1 },
+          'CC': { 'ROAST BEEF': 0.5, 'PALETA DE VACA': 0.5 },
+          'VP': { 'VACIO': 0.7, 'TAPA DE ASADO': 0.3 },
+          'MPP': { 'PALETA DE CERDO': 0.5, 'BONDIOLA DE CERDO': 0.5 },
+          'PO': { 'POLLO': 1 },
+          'AC': { 'POLLO': 1 },
+          'PC': { 'POLLO': 1 },
+          'BB': { 'ROAST BEEF': 1 },
+          'MT': { 'MATAMBRE': 1 },
+          'PE': { 'PECHO DE CERDO': 1 },
+          'JH': { 'PALETA DE VACA': 1 },
+          '4Q': { 'ROAST BEEF': 1 },
+          'CZ': { 'ROAST BEEF': 1 },
+          'V': { 'VACIO': 1 },
+        });
+      }
+    };
+
+    loadConfig();
+    window.addEventListener('config-updated', loadConfig);
+    return () => window.removeEventListener('config-updated', loadConfig);
+  }, []);
+
   useEffect(() => {
     const loadConverterData = () => {
       const saved = localStorage.getItem('converter_results');
@@ -59,17 +94,7 @@ export function ProgrammingPage() {
             return parseFloat(strVal.replace(',', '.')) || 0;
           };
 
-          const MEAT_DISTRIBUTION: Record<string, Record<string, number>> = {
-            'CS': { 'ROAST BEEF': 1 },
-            'CA': { 'ROAST BEEF': 1 },
-            'CP': { 'ROAST BEEF': 1 },
-            'CC': { 'ROAST BEEF': 0.5, 'PALETA DE VACA': 0.5 },
-            'VP': { 'VACIO': 0.7, 'TAPA DE ASADO': 0.3 },
-            'MPP': { 'PALETA DE CERDO': 0.5, 'BONDIOLA DE CERDO': 0.5 },
-            'PO': { 'POLLO': 1 },
-            'AC': { 'POLLO': 1 },
-            'PC': { 'POLLO': 1 },
-          };
+          const MEAT_DISTRIBUTION = meatDistMap;
 
           parsed.forEach((row: any) => {
             const productKey = (row.product || row.gusto || '').trim().toUpperCase();

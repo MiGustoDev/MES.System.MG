@@ -10,6 +10,7 @@ import {
   Calculator,
   ChevronLeft,
   LogOut,
+  Settings,
 } from 'lucide-react';
 import { ConversorPage } from '../pages/ConversorPage';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,6 +34,9 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'production', label: 'Producción', icon: Package },
     { id: 'history', label: 'Historial', icon: History },
     { id: 'plant-screen', label: 'Pantalla Planta', icon: Monitor },
+    ...(user?.email?.toLowerCase().includes('admin') ? [
+      { id: 'config', label: 'Configuración', icon: Settings }
+    ] : []),
   ];
 
   return (

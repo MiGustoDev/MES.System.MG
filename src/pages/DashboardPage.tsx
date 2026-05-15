@@ -356,7 +356,11 @@ export function DashboardPage() {
           <div className="space-y-2 sm:space-y-4">
             <div>
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Cumplimiento</p>
-              <h3 className={`text-xl sm:text-2xl font-black mt-1 ${compliance >= 100 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              <h3 className={`text-xl sm:text-2xl font-black mt-1 ${
+                compliance > 101 ? 'text-amber-600 dark:text-amber-400' :
+                compliance > 99 ? 'text-green-600 dark:text-green-400' :
+                'text-red-600 dark:text-red-400'
+              }`}>
                 <CountUpNumber end={compliance} decimals={1} suffix="%" />
               </h3>
             </div>
@@ -369,7 +373,11 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6">
-            <CircularProgress percentage={compliance} color={compliance >= 100 ? 'green' : 'red'} size={42} />
+            <CircularProgress 
+              percentage={compliance} 
+              color={compliance > 101 ? 'amber' : compliance > 99 ? 'green' : 'red'} 
+              size={42} 
+            />
           </div>
         </div>
       </div>
@@ -396,9 +404,11 @@ export function DashboardPage() {
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-medium text-gray-900 dark:text-white">{sector}</span>
                         <span className={`text-sm font-semibold ${
-                          sectorCompliance >= 100 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                          sectorCompliance > 101 ? 'text-amber-600 dark:text-amber-400' :
+                          sectorCompliance > 99 ? 'text-green-600 dark:text-green-400' :
+                          'text-red-600 dark:text-red-400'
                         }`}>
-                          <CountUpNumber end={sectorCompliance} suffix="%" />
+                          <CountUpNumber end={sectorCompliance} decimals={1} suffix="%" />
                         </span>
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -407,7 +417,7 @@ export function DashboardPage() {
                       </div>
                       <ProgressBar 
                         percentage={sectorCompliance} 
-                        color={sectorCompliance >= 100 ? 'green' : 'red'} 
+                        color={sectorCompliance > 101 ? 'amber' : sectorCompliance > 99 ? 'green' : 'red'} 
                       />
                     </div>
                   );
@@ -442,9 +452,11 @@ export function DashboardPage() {
                         <CountUpNumber end={item.produced} suffix=" kg" />
                       </p>
                       <p className={`text-sm font-semibold ${
-                        item.compliance >= 100 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        item.compliance > 101 ? 'text-amber-600 dark:text-amber-400' :
+                        item.compliance > 99 ? 'text-green-600 dark:text-green-400' :
+                        'text-red-600 dark:text-red-400'
                       }`}>
-                        <CountUpNumber end={item.compliance} suffix="% del plan" />
+                        <CountUpNumber end={item.compliance} decimals={1} suffix="% del plan" />
                       </p>
                     </div>
                   </div>
@@ -494,7 +506,7 @@ export function DashboardPage() {
                   fillOpacity={0.6}
                 />
                 <Tooltip 
-                  formatter={(value: any) => typeof value === 'number' ? formatNumber(value, 0) : value}
+                  formatter={(value: any) => typeof value === 'number' ? formatNumber(value, 1) : value}
                   contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
                 />
               </RadarChart>
@@ -557,7 +569,7 @@ export function DashboardPage() {
                 <XAxis type="number" dataKey="x" name="Cumplimiento" unit="%" domain={[0, 150]} tick={{ fill: '#9ca3af' }} />
                 <YAxis type="number" dataKey="y" name="Frecuencia" hide />
                 <ZAxis type="number" dataKey="z" range={[50, 400]} />
-                <Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(value: any) => typeof value === 'number' ? formatNumber(value, 0) : value} />
+                <Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(value: any) => typeof value === 'number' ? formatNumber(value, 1) : value} />
                 <Scatter name="Productos" data={gaussData} fill="#10b981" />
               </ScatterChart>
             </ResponsiveContainer>
@@ -603,7 +615,7 @@ export function DashboardPage() {
                 <XAxis dataKey="date" tick={{ fill: '#9ca3af', fontSize: 10 }} />
                 <YAxis tickFormatter={(value) => formatNumber(value, 0)} tick={{ fill: '#9ca3af' }} />
                 <Tooltip 
-                  formatter={(value: any) => typeof value === 'number' ? formatNumber(value, 0) : value}
+                  formatter={(value: any) => typeof value === 'number' ? formatNumber(value, 1) : value}
                   contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
                 />
                 <Area type="monotone" dataKey="total" stroke="#3b82f6" fillOpacity={1} fill="url(#colorTotal)" />

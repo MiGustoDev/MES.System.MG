@@ -73,6 +73,22 @@ export function ConversorPage() {
   const isAdmin = role === 'admin';
   const canEdit = isAdmin || role === 'planner';
   const [isProcessing, setIsProcessing] = useState(false);
+  const [equivalencies, setEquivalencies] = useState(PRODUCT_EQUIVALENCIES);
+
+  useEffect(() => {
+    const loadConfig = () => {
+      const saved = localStorage.getItem('mes_config_equivalencies');
+      if (saved) {
+        setEquivalencies(JSON.parse(saved));
+      } else {
+        setEquivalencies(PRODUCT_EQUIVALENCIES);
+      }
+    };
+
+    loadConfig();
+    window.addEventListener('config-updated', loadConfig);
+    return () => window.removeEventListener('config-updated', loadConfig);
+  }, []);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -106,7 +122,7 @@ export function ConversorPage() {
           const stockBateas = parseNum(parts[4]);
           
           const gusto = parts[0];
-          const equiv = PRODUCT_EQUIVALENCIES[gusto.toUpperCase()];
+          const equiv = (equivalencies as any)[gusto.toUpperCase()];
           
           const bateasConfig = parseNum(parts[8]) || 1;
           const bandejasConfig = equiv ? (equiv.bandejas || parseNum(parts[9])) : (parseNum(parts[9]) || 1);
