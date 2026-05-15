@@ -379,7 +379,7 @@ const calculateDifference = (produced: number, planned: number) => produced - pl
           { label: 'PLAN TURNO', value: `${formatNumber(totalPlanned, 0)} ${SECTOR_UNITS[selectedSector]}`, color: 'text-white' },
           { label: 'PRODUCIDO', value: `${formatNumber(totalProduced, 0)} ${SECTOR_UNITS[selectedSector].toLowerCase()}`, color: 'text-emerald-400' },
           { label: 'DIFERENCIA', value: `${totalDiff >= 0 ? '+' : ''}${formatNumber(totalDiff, 0)} ${SECTOR_UNITS[selectedSector].toLowerCase()}`, color: totalDiff >= 0 ? 'text-emerald-400' : 'text-rose-400' },
-          { label: 'EFICIENCIA', value: overallStatus, color: overallStatus === 'Adelanto' ? 'text-amber-500' : overallStatus === 'Atraso' ? 'text-rose-500' : 'text-emerald-500' }
+          { label: 'EFICIENCIA', value: overallStatus, color: overallStatus === 'Adelanto' ? 'text-yellow-400' : overallStatus === 'Atraso' ? 'text-rose-500' : 'text-emerald-500' }
         ].map((kpi, idx) => (
           <div key={idx} className="bg-white/5 backdrop-blur-xl p-8 rounded-[2rem] border border-white/10 shadow-2xl transition-all hover:scale-[1.02]">
             <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-3">{kpi.label}</p>
@@ -493,7 +493,7 @@ const calculateDifference = (produced: number, planned: number) => produced - pl
                           <div className="flex justify-between items-start mb-3">
                             <span className="text-xs font-black text-white uppercase tracking-tight flex-1 break-words mr-2">{row.product}</span>
                             <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                              status === 'Adelanto' ? 'bg-amber-500/10 text-amber-500' :
+                              status === 'Adelanto' ? 'bg-yellow-400/10 text-yellow-400' :
                               status === 'Atraso' ? 'bg-rose-500/10 text-rose-500' :
                               'bg-emerald-500/10 text-emerald-500'
                             }`}>
@@ -585,7 +585,7 @@ const calculateDifference = (produced: number, planned: number) => produced - pl
                       </td>
                       <td className="px-8 py-6 text-center">
                         <span className={`inline-flex px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${
-                          status === 'Adelanto' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
+                          status === 'Adelanto' ? 'bg-yellow-400/10 text-yellow-400 border border-yellow-400/20' :
                           status === 'Atraso' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' :
                           'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                         }`}>

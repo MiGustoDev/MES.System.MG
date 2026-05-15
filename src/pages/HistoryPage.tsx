@@ -87,8 +87,8 @@ export function HistoryPage() {
       const csvRows = [headers.join(';')];
 
       data.forEach((item: any) => {
-        const diff = item.difference ?? (item.produced - item.planned);
-        const status = item.status ?? (diff > 0 ? 'Adelanto' : (diff === 0 ? 'OK' : 'Atraso'));
+        const diff = item.produced - item.planned;
+        const status = diff > 0 ? 'Adelanto' : (diff === 0 ? 'OK' : 'Atraso');
         
         const row = [
           item.date,
@@ -135,8 +135,8 @@ export function HistoryPage() {
     const shiftHistory = sectorHistory.filter(h => 
       h.shift_type.toLowerCase().trim() === shift.toLowerCase().trim()
     ).map(item => {
-      const diff = item.difference ?? (item.produced - item.planned);
-      const status = item.status ?? (diff > 0 ? 'Adelanto' : (diff === 0 ? 'OK' : 'Atraso'));
+      const diff = item.produced - item.planned;
+      const status = diff > 0 ? 'Adelanto' : (diff === 0 ? 'OK' : 'Atraso');
       return { ...item, difference: diff, status: status };
     });
 
@@ -342,9 +342,9 @@ export function HistoryPage() {
                       </div>
                       {shiftHistory.length > 0 && (
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
-                          overallStatus === 'Adelanto' ? 'border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' :
+                          overallStatus === 'Adelanto' ? 'border-yellow-200 bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-500/20' :
                           overallStatus === 'Atraso' ? 'border-red-200 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' :
-                          'border-teal-200 bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/20'
+                          'border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
                         }`}>
                           {overallStatus.toUpperCase()}
                         </span>
@@ -395,16 +395,16 @@ export function HistoryPage() {
                                     <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500">{formatNumber(item.planned, 0)}</span>
                                     <span className="text-xs font-bold text-gray-900 dark:text-white mx-1.5">/</span>
                                     <span className={`text-xs font-black ${
-                                      item.produced > item.planned ? 'text-amber-500' :
-                                      item.produced === item.planned ? 'text-teal-500' :
+                                      item.produced > item.planned ? 'text-yellow-400' :
+                                      item.produced === item.planned ? 'text-emerald-500' :
                                       'text-red-500'
                                     }`}>{formatNumber(item.produced, 0)}</span>
                                   </td>
                                   <td className="pr-4 py-4 text-right">
                                     <div className={`inline-flex w-2.5 h-2.5 rounded-full shadow-[0_0_8px] ${
-                                      item.status === 'Adelanto' ? 'bg-amber-500' :
+                                      item.status === 'Adelanto' ? 'bg-yellow-400' :
                                       item.status === 'Atraso' ? 'bg-red-500' :
-                                      'bg-teal-500'
+                                      'bg-emerald-500'
                                     } shadow-sm shadow-current/20`} title={item.status}></div>
                                   </td>
                                 </tr>

@@ -234,9 +234,9 @@ export function calculateStatus(difference: number): Status {
 export function getStatusColor(status: Status): string {
   switch (status) {
     case 'Adelanto':
-      return 'bg-amber-100 text-amber-800 border-amber-300';
+      return 'bg-yellow-100 text-yellow-800 border-yellow-300';
     case 'OK':
-      return 'bg-green-100 text-green-800 border-green-300';
+      return 'bg-emerald-100 text-emerald-800 border-emerald-300';
     case 'Atraso':
       return 'bg-red-100 text-red-800 border-red-300';
   }
@@ -245,9 +245,9 @@ export function getStatusColor(status: Status): string {
 export function getStatusBadgeColor(status: Status): string {
   switch (status) {
     case 'Adelanto':
-      return 'bg-amber-500';
+      return 'bg-yellow-400';
     case 'OK':
-      return 'bg-green-500';
+      return 'bg-emerald-500';
     case 'Atraso':
       return 'bg-red-500';
   }
