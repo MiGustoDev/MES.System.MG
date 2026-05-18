@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { History, SECTORS, Sector, SHIFT_TYPES, ShiftType, SECTOR_PRODUCTS, calculateStatus } from '../types';
-import { Calendar, Beef, ChefHat, ListRestart, Package, Droplets, Info, TrendingUp, Target, Activity, Download, FileText, X } from 'lucide-react';
+import { Calendar, Beef, ChefHat, ListRestart, Package, Droplets, Info, TrendingUp, Target, Activity, Download, FileText, X, Calculator, ClipboardList } from 'lucide-react';
+import { loadDailyPlanningContext } from '../lib/dailyContext';
+import type { DailyPlanningContext } from '../types';
 import { CalendarDropdown } from '../components/CalendarDropdown';
 import { formatNumber } from '../utils/format';
 
@@ -33,6 +35,7 @@ export function HistoryPage() {
     end: new Date().toISOString().split('T')[0]
   });
   const [isExporting, setIsExporting] = useState(false);
+  const [dailyContext, setDailyContext] = useState<DailyPlanningContext | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -58,12 +61,23 @@ export function HistoryPage() {
 
       if (error) throw error;
       setHistory(data || []);
+
+      const context = await loadDailyPlanningContext(selectedDate);
+      setDailyContext(context);
     } catch (error) {
       console.error('Error loading history:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const converterRows = (dailyContext?.converter_data as Array<Record<string, unknown>>) ?? [];
+  const dailyGoal = (dailyContext?.daily_goal_data as Record<string, number>) ?? {};
+  const hasDailyContext =
+    Boolean(dailyContext?.converter_raw_text?.trim()) ||
+    converterRows.length > 0 ||
+    Boolean(dailyContext?.daily_goal_paste?.trim()) ||
+    Object.keys(dailyGoal).length > 0;
 
   const handleExportRange = async () => {
     setIsExporting(true);
@@ -263,6 +277,81 @@ export function HistoryPage() {
       )}
 
       {/* Turno selection removed as all shifts are now displayed simultaneously */}
+
+      {hasDailyContext && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-[#1a1c23] rounded-2xl border border-gray-100 dark:border-white/5 shadow-xl overflow-hidden">
+            <div className="px-6 py-4 bg-[#4d7c71] flex items-center gap-3">
+              <Calculator className="w-5 h-5 text-white" />
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">Conversor del día</h3>
+                <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Registro al guardar programación</p>
+              </div>
+            </div>
+            <div className="p-6 space-y-4 max-h-[420px] overflow-auto">
+              {dailyContext?.converter_raw_text?.trim() ? (
+                <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-gray-50 dark:bg-black/30 p-4 rounded-xl border border-gray-100 dark:border-white/10">
+                  {dailyContext.converter_raw_text}
+                </pre>
+              ) : null}
+              {converterRows.length > 0 && (
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-white/10">
+                      <th className="py-2 pr-2">Gusto</th>
+                      <th className="py-2 px-2 text-right">Prog.</th>
+                      <th className="py-2 px-2 text-right">St. Band.</th>
+                      <th className="py-2 px-2 text-right">A armar</th>
+                      <th className="py-2 pl-2 text-right">Cocción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-white/5">
+                    {converterRows.map((row, idx) => (
+                      <tr key={idx}>
+                        <td className="py-2 pr-2 font-bold text-gray-900 dark:text-white">{String(row.gusto ?? '')}</td>
+                        <td className="py-2 px-2 text-right">{Number(row.programacion ?? 0)}</td>
+                        <td className="py-2 px-2 text-right">{Number(row.stockBandejas ?? 0)}</td>
+                        <td className="py-2 px-2 text-right">{Number(row.armarBand ?? 0)}</td>
+                        <td className="py-2 pl-2 text-right">{typeof row.coccion === 'number' ? row.coccion.toFixed(1) : String(row.coccion ?? '')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-[#1a1c23] rounded-2xl border border-gray-100 dark:border-white/5 shadow-xl overflow-hidden">
+            <div className="px-6 py-4 bg-blue-600 flex items-center gap-3">
+              <ClipboardList className="w-5 h-5 text-white" />
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">Objetivo diario</h3>
+                <p className="text-[10px] font-bold text-blue-100 uppercase tracking-widest opacity-80">Referencia de carga</p>
+              </div>
+            </div>
+            <div className="p-6 space-y-4 max-h-[420px] overflow-auto">
+              {dailyContext?.daily_goal_paste?.trim() ? (
+                <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-gray-50 dark:bg-black/30 p-4 rounded-xl border border-gray-100 dark:border-white/10">
+                  {dailyContext.daily_goal_paste}
+                </pre>
+              ) : null}
+              {Object.keys(dailyGoal).length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Object.entries(dailyGoal).map(([product, target]) => (
+                    <div key={product} className="p-4 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Plan</p>
+                      <p className="text-lg font-black text-gray-900 dark:text-white">{product}</p>
+                      <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">{target}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center py-8">Sin objetivos registrados</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-[#1a1c23] rounded-2xl shadow-xl border border-gray-100 dark:border-white/5 overflow-hidden transition-all duration-300">
         {/* NAVEGACIÓN DE SECTORES */}

@@ -191,6 +191,17 @@ export interface Production {
   updated_at: string;
 }
 
+export interface DailyPlanningContext {
+  id?: string;
+  date: string;
+  converter_raw_text?: string | null;
+  converter_data?: unknown[] | null;
+  daily_goal_paste?: string | null;
+  daily_goal_data?: Record<string, number> | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface History {
   id: string;
   date: string;

@@ -105,3 +105,6 @@ create policy "Public access history" on public.history for all to public using 
 
 drop policy if exists "Public access shifts" on public.shifts;
 create policy "Public access shifts" on public.shifts for all to public using (true) with check (true);
+
+-- 10) TABLA: daily_planning_context (conversor + objetivo diario por fecha)
+-- Ver db/daily_planning_context.sql para el script completo de migración.

@@ -5,6 +5,12 @@ import { Programming, SECTOR_PRODUCTS, SECTORS, SHIFT_TYPES, Sector, ShiftType }
 import { Calendar, Copy, Save, RefreshCw, Plus, Trash2, TrendingUp, Pencil, Check, Package, FileText, ClipboardList, X, Eye, Lock } from 'lucide-react';
 import { CalendarDropdown } from '../components/CalendarDropdown';
 import { NumericInput } from '../components/NumericInput';
+import {
+  applyConverterToLocalStorage,
+  loadDailyPlanningContext,
+  readConverterFromLocalStorage,
+  saveDailyPlanningContext,
+} from '../lib/dailyContext';
 
 export function ProgrammingPage() {
   const { canEditProgramming, role } = useAuth();
@@ -236,12 +242,30 @@ export function ProgrammingPage() {
       });
 
       setProgramming(rows as Programming[]);
+      await loadDailyContextForDate(selectedDate);
     } catch (error) {
       console.error('Error loading programming:', error);
       showMessage('error', 'Error al cargar la programación');
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadDailyContextForDate = async (date: string) => {
+    const snapshot = await loadDailyPlanningContext(date);
+    if (!snapshot) {
+      setExcelPasteData('');
+      setExcelComparison({});
+      applyConverterToLocalStorage('', []);
+      return;
+    }
+
+    setExcelPasteData(snapshot.daily_goal_paste ?? '');
+    setExcelComparison((snapshot.daily_goal_data as Record<string, number>) ?? {});
+    applyConverterToLocalStorage(
+      snapshot.converter_raw_text ?? '',
+      (snapshot.converter_data as unknown[]) ?? []
+    );
   };
 
   const showMessage = (type: 'success' | 'error', text: string) => {
@@ -375,6 +399,14 @@ export function ProgrammingPage() {
 
         if (insertError) throw insertError;
       }
+
+      const { rawText, parsedRows } = readConverterFromLocalStorage();
+      await saveDailyPlanningContext(selectedDate, {
+        converterRawText: rawText,
+        converterData: parsedRows,
+        dailyGoalPaste: excelPasteData,
+        dailyGoalData: excelComparison,
+      });
 
       showMessage('success', `Programación guardada correctamente`);
       await loadProgramming();
@@ -951,21 +983,21 @@ export function ProgrammingPage() {
                           let diffClass = "bg-red-500";
 
                           if (isUnassigned) {
-                            cardClass = "bg-gray-500/5 border-gray-500/20 opacity-60";
-                            badgeClass = "bg-gray-500/40 border-white/5";
-                            diffClass = "bg-gray-700 text-white/40";
+                            cardClass = "bg-slate-800/50 border-2 border-dashed border-slate-400/80 ring-1 ring-slate-300/25 shadow-[0_0_16px_rgba(148,163,184,0.2)]";
+                            badgeClass = "bg-slate-600 border border-slate-400/60";
+                            diffClass = "bg-slate-700 border border-slate-400/70 text-white";
                           } else if (isOK) {
-                            cardClass = "bg-emerald-500/10 border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.1)]";
-                            badgeClass = "bg-emerald-600 border-emerald-400/30";
-                            diffClass = "bg-emerald-500";
+                            cardClass = "bg-emerald-500/30 border-2 border-emerald-400 ring-1 ring-emerald-400/40 shadow-[0_0_20px_rgba(16,185,129,0.35)]";
+                            badgeClass = "bg-emerald-500 border border-emerald-300";
+                            diffClass = "bg-emerald-500 border border-emerald-300 text-white shadow-[0_0_12px_rgba(16,185,129,0.5)]";
                           } else if (isAhead) {
-                            cardClass = "bg-orange-500/10 border-orange-500/40 shadow-[0_0_20px_rgba(249,115,22,0.1)]";
-                            badgeClass = "bg-orange-600 border-orange-400/30";
-                            diffClass = "bg-orange-500";
+                            cardClass = "bg-yellow-500/30 border-2 border-yellow-400 ring-1 ring-yellow-400/40 shadow-[0_0_20px_rgba(234,179,8,0.35)]";
+                            badgeClass = "bg-yellow-500 border border-yellow-300";
+                            diffClass = "bg-yellow-500 border border-yellow-300 text-yellow-950 shadow-[0_0_12px_rgba(234,179,8,0.5)]";
                           } else if (isDelayed) {
-                            cardClass = "bg-red-500/10 border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.1)]";
-                            badgeClass = "bg-red-600 border-red-400/30";
-                            diffClass = "bg-red-500";
+                            cardClass = "bg-red-500/30 border-2 border-red-500 ring-1 ring-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.4)]";
+                            badgeClass = "bg-red-600 border border-red-400";
+                            diffClass = "bg-red-600 border border-red-400 text-white shadow-[0_0_12px_rgba(239,68,68,0.5)]";
                           }
 
                           return (
@@ -979,20 +1011,20 @@ export function ProgrammingPage() {
 
                               {/* PRODUCT CODE */}
                               <div className="flex flex-col items-center mb-3">
-                                <h4 className={`text-2xl font-black tracking-tighter ${isOK ? 'text-emerald-400' : 'text-white'}`}>
+                                <h4 className={`text-2xl font-black tracking-tighter ${isOK ? 'text-emerald-300' : isAhead ? 'text-yellow-300' : isDelayed ? 'text-red-300' : isUnassigned ? 'text-slate-100' : 'text-white'}`}>
                                   {product}
                                 </h4>
-                                {isOK && <Check className="w-3 h-3 text-emerald-500 mt-1" />}
+                                {isOK && <Check className="w-3 h-3 text-emerald-400 mt-1" />}
                               </div>
 
                               {/* MINI FOOTER: STACKED */}
-                              <div className="w-full pt-2 border-t border-white/10 flex flex-col gap-2 items-center">
+                              <div className={`w-full pt-2 flex flex-col gap-2 items-center ${isUnassigned ? 'border-t border-dashed border-slate-400/50' : isOK ? 'border-t border-emerald-400/60' : isAhead ? 'border-t border-yellow-400/60' : isDelayed ? 'border-t border-red-500/60' : 'border-t border-white/10'}`}>
                                 <div className="flex flex-col items-center">
-                                  <span className="text-[7px] font-black text-white/30 uppercase tracking-widest leading-none mb-0.5">PLAN</span>
+                                  <span className={`text-[7px] font-black uppercase tracking-widest leading-none mb-0.5 ${isUnassigned ? 'text-slate-400' : 'text-white/30'}`}>PLAN</span>
                                   <span className="text-sm font-black text-white leading-none">{target}</span>
                                 </div>
                                 <div className="flex flex-col items-center">
-                                  <span className={`text-[7px] font-black uppercase tracking-widest leading-none mb-0.5 ${isOK ? 'text-emerald-400' : 'text-blue-400'}`}>CARG.</span>
+                                  <span className={`text-[7px] font-black uppercase tracking-widest leading-none mb-0.5 ${isOK ? 'text-emerald-400' : isAhead ? 'text-yellow-400' : isDelayed ? 'text-red-400' : isUnassigned ? 'text-slate-300' : 'text-blue-400'}`}>CARG.</span>
                                   <span className="text-sm font-black text-white leading-none">{programmed}</span>
                                 </div>
                               </div>
@@ -1062,33 +1094,38 @@ export function ProgrammingPage() {
                                let progBarClass = "bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]";
 
                                if (isUnassigned) {
-                                 cardClass = "bg-white/[0.02] border-white/5 opacity-60";
-                                 glowColor = "bg-gray-500";
-                                 diffClass = "bg-gray-700 border-gray-600 text-white/40";
-                                 progBarClass = "bg-gray-600";
+                                 cardClass = "bg-slate-800/35 border-2 border-dashed border-slate-400/70 ring-2 ring-slate-400/20 shadow-[0_0_24px_rgba(148,163,184,0.15)]";
+                                 glowColor = "bg-slate-400";
+                                 diffClass = "bg-slate-700/90 border-2 border-slate-400/80 text-slate-100 shadow-[0_4px_16px_rgba(148,163,184,0.25)]";
+                                 progBarClass = "bg-slate-500/80";
                                } else if (isOK) {
-                                 cardClass = "bg-gradient-to-br from-emerald-500/10 to-emerald-500/[0.02] border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)]";
+                                 cardClass = "bg-emerald-500/25 border-2 border-emerald-400 ring-2 ring-emerald-400/30 shadow-[0_0_32px_rgba(16,185,129,0.35)]";
                                  glowColor = "bg-emerald-400";
-                                 diffClass = "bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]";
-                                 progBarClass = "bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)]";
+                                 diffClass = "bg-emerald-500 border-2 border-emerald-300 text-white shadow-[0_4px_20px_rgba(16,185,129,0.5)]";
+                                 progBarClass = "bg-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.7)]";
                                } else if (isAhead) {
-                                 cardClass = "bg-gradient-to-br from-orange-500/10 to-orange-500/[0.02] border-orange-500/30 shadow-[0_0_30px_rgba(249,115,22,0.1)]";
-                                 glowColor = "bg-orange-400";
-                                 diffClass = "bg-orange-500/10 border-orange-500 text-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.2)]";
-                                 progBarClass = "bg-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.5)]";
+                                 cardClass = "bg-yellow-500/25 border-2 border-yellow-400 ring-2 ring-yellow-400/30 shadow-[0_0_32px_rgba(234,179,8,0.35)]";
+                                 glowColor = "bg-yellow-400";
+                                 diffClass = "bg-yellow-500 border-2 border-yellow-300 text-yellow-950 shadow-[0_4px_20px_rgba(234,179,8,0.5)]";
+                                 progBarClass = "bg-yellow-400 shadow-[0_0_24px_rgba(234,179,8,0.7)]";
+                               } else if (isDelayed) {
+                                 cardClass = "bg-red-500/25 border-2 border-red-500 ring-2 ring-red-500/30 shadow-[0_0_32px_rgba(239,68,68,0.4)]";
+                                 glowColor = "bg-red-500";
+                                 diffClass = "bg-red-600 border-2 border-red-400 text-white shadow-[0_4px_20px_rgba(239,68,68,0.55)]";
+                                 progBarClass = "bg-red-500 shadow-[0_0_24px_rgba(239,68,68,0.7)]";
                                }
 
                                return (
                                 <div key={product} className={`group/comp relative overflow-hidden p-8 rounded-[2.5rem] border transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/5 ${cardClass}`}>
-                                  <div className={`absolute -top-10 -right-10 w-40 h-40 blur-[80px] opacity-10 transition-opacity duration-700 group-hover/comp:opacity-20 ${glowColor}`}></div>
+                                  <div className={`absolute -top-10 -right-10 w-40 h-40 blur-[80px] transition-opacity duration-700 ${isUnassigned ? 'opacity-10 group-hover/comp:opacity-20' : 'opacity-25 group-hover/comp:opacity-40'} ${glowColor}`}></div>
                                   <div className="relative z-10 flex flex-col gap-8">
                                     <div className="flex justify-between items-start">
                                       <div className="space-y-3">
                                         <div className="flex flex-col gap-1">
-                                          <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] leading-none">CÓDIGO</p>
+                                          <p className={`text-[10px] font-black uppercase tracking-[0.3em] leading-none ${isUnassigned ? 'text-slate-400' : 'text-white/20'}`}>CÓDIGO</p>
                                           <div className="flex items-center gap-4">
-                                            <p className="text-3xl font-black text-white tracking-tighter leading-none uppercase">{product}</p>
-                                            {isOK && <Check className="w-5 h-5 text-emerald-500" />}
+                                            <p className={`text-3xl font-black tracking-tighter leading-none uppercase ${isOK ? 'text-emerald-300' : isAhead ? 'text-yellow-300' : isDelayed ? 'text-red-300' : isUnassigned ? 'text-slate-100' : 'text-white'}`}>{product}</p>
+                                            {isOK && <Check className="w-5 h-5 text-emerald-400" />}
                                           </div>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
@@ -1104,7 +1141,7 @@ export function ProgrammingPage() {
                                               ))}
                                             </div>
                                           ) : (
-                                            <div className="px-3 py-1 bg-red-500/10 rounded-lg border border-red-500/20"><span className="text-[9px] font-black text-red-500/60 uppercase tracking-widest">Sin asignar</span></div>
+                                            <div className="px-3 py-1.5 bg-slate-700/40 rounded-lg border-2 border-dashed border-slate-400/70 ring-1 ring-slate-300/20"><span className="text-[9px] font-black text-slate-200 uppercase tracking-widest">Sin asignar</span></div>
                                           )}
                                         </div>
                                       </div>
@@ -1112,13 +1149,13 @@ export function ProgrammingPage() {
                                         {isOK ? 'LISTO' : (diff > 0 ? '+' : '') + diff}
                                       </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-px bg-white/10 rounded-[2rem] overflow-hidden border border-white/10">
-                                      <div className="bg-white/[0.03] p-6 transition-colors group-hover/comp:bg-white/[0.06]"><span className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">PLAN</span><span className="text-3xl font-black text-white leading-none tracking-tight">{target}</span></div>
-                                      <div className={`p-6 transition-all ${isOK ? 'bg-emerald-500/10' : 'bg-white/[0.03]'}`}><span className={`text-[10px] font-black uppercase tracking-widest block mb-2 ${isOK ? 'text-emerald-400' : 'text-blue-400'}`}>CARGADO</span><span className="text-3xl font-black text-white leading-none tracking-tight">{programmed}</span></div>
+                                    <div className={`grid grid-cols-2 gap-px rounded-[2rem] overflow-hidden ${isUnassigned ? 'bg-slate-700/30 border-2 border-dashed border-slate-400/50' : isOK ? 'bg-emerald-900/20 border-2 border-emerald-400/60' : isAhead ? 'bg-yellow-900/20 border-2 border-yellow-400/60' : isDelayed ? 'bg-red-900/20 border-2 border-red-500/60' : 'bg-white/10 border border-white/10'}`}>
+                                      <div className={`p-6 transition-colors ${isUnassigned ? 'bg-slate-800/40' : isOK ? 'bg-emerald-500/15' : isAhead ? 'bg-yellow-500/15' : isDelayed ? 'bg-red-500/15' : 'bg-white/[0.03] group-hover/comp:bg-white/[0.06]'}`}><span className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">PLAN</span><span className="text-3xl font-black text-white leading-none tracking-tight">{target}</span></div>
+                                      <div className={`p-6 transition-all ${isOK ? 'bg-emerald-500/20' : isAhead ? 'bg-yellow-500/20' : isDelayed ? 'bg-red-500/20' : isUnassigned ? 'bg-slate-800/25' : 'bg-white/[0.03]'}`}><span className={`text-[10px] font-black uppercase tracking-widest block mb-2 ${isOK ? 'text-emerald-400' : isAhead ? 'text-yellow-400' : isDelayed ? 'text-red-400' : isUnassigned ? 'text-slate-300' : 'text-blue-400'}`}>CARGADO</span><span className="text-3xl font-black text-white leading-none tracking-tight">{programmed}</span></div>
                                     </div>
                                     <div className="space-y-4">
-                                      <div className="flex justify-between items-end px-1"><span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Estado</span><span className={`text-sm font-black ${isOK ? 'text-emerald-400' : 'text-white/40'}`}>{Math.round((programmed / target) * 100)}%</span></div>
-                                      <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden p-[3px] border border-white/5"><div className={`h-full rounded-full transition-all duration-1000 ease-in-out ${progBarClass}`} style={{ width: `${Math.min(100, (programmed / target) * 100)}%` }} /></div>
+                                      <div className="flex justify-between items-end px-1"><span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Estado</span><span className={`text-sm font-black ${isOK ? 'text-emerald-400' : isAhead ? 'text-yellow-400' : isDelayed ? 'text-red-400' : 'text-white/40'}`}>{Math.round((programmed / target) * 100)}%</span></div>
+                                      <div className={`w-full h-3 rounded-full overflow-hidden p-[3px] ${isUnassigned ? 'bg-slate-800/50 border-2 border-dashed border-slate-400/40' : isOK ? 'bg-emerald-950/40 border-2 border-emerald-400/50' : isAhead ? 'bg-yellow-950/40 border-2 border-yellow-400/50' : isDelayed ? 'bg-red-950/40 border-2 border-red-500/50' : 'bg-white/5 border border-white/5'}`}><div className={`h-full rounded-full transition-all duration-1000 ease-in-out ${progBarClass}`} style={{ width: `${Math.min(100, (programmed / target) * 100)}%` }} /></div>
                                     </div>
                                   </div>
                                 </div>

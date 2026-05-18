@@ -91,6 +91,20 @@ export function ConversorPage() {
   }, []);
 
   useEffect(() => {
+    const loadPasteFromStorage = () => {
+      const saved = localStorage.getItem('converter_paste');
+      if (saved !== null) setData(saved);
+    };
+    loadPasteFromStorage();
+    window.addEventListener('daily-context-loaded', loadPasteFromStorage);
+    return () => window.removeEventListener('daily-context-loaded', loadPasteFromStorage);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('converter_paste', data);
+  }, [data]);
+
+  useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (data.trim()) {
         const lines = data.trim().split('\n');
@@ -347,7 +361,13 @@ export function ConversorPage() {
         <div className="flex items-center gap-3 relative z-10 w-full md:w-auto">
           <button 
             disabled={!data || !canEdit}
-            onClick={() => { setData(''); setParsedData([]); }}
+            onClick={() => {
+              setData('');
+              setParsedData([]);
+              localStorage.removeItem('converter_paste');
+              localStorage.removeItem('converter_results');
+              window.dispatchEvent(new CustomEvent('converter-updated'));
+            }}
             className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-8 py-3 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500/20 transition-all font-black text-xs uppercase tracking-widest disabled:opacity-30 disabled:pointer-events-none"
           >
             <Trash2 className="w-4 h-4" />
