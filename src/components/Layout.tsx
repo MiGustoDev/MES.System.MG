@@ -66,26 +66,28 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 </div>
               </div>
 
-              {/* Main Navigation - Limited by max-w-7xl */}
-              <div className="hidden lg:flex items-center space-x-1">
-                {menuItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = currentPage === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => onNavigate(item.id)}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                        isActive
-                          ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
+              {/* Main Navigation - Centered in navbar (shifted slightly right for visual balance) */}
+              <div className="hidden lg:flex absolute left-[54%] -translate-x-1/2 top-0 h-16 items-center space-x-1">
+                {menuItems
+                  .filter((item) => item.id !== 'config')
+                  .map((item) => {
+                    const Icon = item.icon;
+                    const isActive = currentPage === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => onNavigate(item.id)}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                          isActive
+                            ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
               </div>
 
               {/* Mobile Menu Button - Also moved to absolute for consistency if preferred, 
@@ -98,6 +100,19 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           <div className="absolute right-4 sm:right-6 lg:right-8 top-0 h-16 flex items-center space-x-4">
             {user && (
               <div className="hidden lg:flex items-center space-x-4">
+                {user.email?.toLowerCase().includes('admin') && (
+                  <button
+                    onClick={() => onNavigate('config')}
+                    className={`p-2 rounded-lg transition-all duration-300 ${
+                      currentPage === 'config'
+                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                        : 'text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-white/5'
+                    }`}
+                    title="Configuración"
+                  >
+                    <Settings className={`w-5 h-5 transition-transform duration-500 ${currentPage === 'config' ? 'rotate-90 text-blue-600 dark:text-blue-400' : 'hover:rotate-45'}`} />
+                  </button>
+                )}
                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                   {user.email}
                 </span>
